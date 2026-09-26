@@ -1,5 +1,6 @@
 # JavaScript dependencies and build outputs
 node_modules/
+.tools/
 dist/
 build/
 coverage/

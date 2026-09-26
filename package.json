@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "node ./scripts/generate-model-manifest.js && vite --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
-    "build": "node ./scripts/generate-model-manifest.js && npm run typecheck && vite build",
+    "test": "node --test tests/*.test.mjs",
+    "build": "node ./scripts/generate-model-manifest.js && tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": { "three": "~0.180.0" },

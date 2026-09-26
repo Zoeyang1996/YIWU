@@ -1,7 +1,9 @@
-const fs = require('fs');
-const path = require('path');
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const modelsDir = path.join(__dirname, '..', 'public', 'models');
+const modelsDir = path.join(__dirname, '..', 'public', 'assets', 'models');
 const outFile = path.join(modelsDir, 'manifest.json');
 
 function walk(dir, base = '') {
