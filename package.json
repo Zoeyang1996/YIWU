@@ -5,9 +5,9 @@
   "type": "module",
   "engines": { "node": ">=22.12.0" },
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "node ./scripts/generate-model-manifest.js && vite --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
-    "build": "npm run typecheck && vite build",
+    "build": "node ./scripts/generate-model-manifest.js && npm run typecheck && vite build",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": { "three": "~0.180.0" },
