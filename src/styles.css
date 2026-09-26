@@ -1,0 +1,23 @@
+:root { font-family: "Microsoft YaHei", sans-serif; color: #35483f; background: #f5f0e6; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+#app { max-width: 1600px; margin: auto; padding: 32px 5vw; }
+header { display: flex; align-items: center; gap: 18px; border-bottom: 1px solid #d8d1c1; padding-bottom: 24px; }
+.seal { background: #a4533e; color: #fff4dc; padding: 18px 10px; writing-mode: vertical-rl; letter-spacing: 4px; font-family: serif; }
+h1 { font-family: serif; font-size: 26px; margin: 5px 0 0; letter-spacing: 5px; }
+.eyebrow { font-size: 11px; letter-spacing: 3px; color: #8b795b; }
+.badge { margin-left: auto; border: 1px solid #c9bfa9; border-radius: 20px; padding: 8px 14px; font-size: 12px; }
+main { display: grid; grid-template-columns: minmax(240px, 0.75fr) minmax(0, 2fr); gap: 32px; align-items: center; padding: 32px 0; }
+h2 { font-family: "SimSun", serif; font-size: clamp(28px, 3vw, 44px); line-height: 1.55; font-weight: 500; }
+.intro > p:not(.eyebrow) { font-size: 14px; line-height: 2; color: #6b7164; max-width: 340px; }
+.intro .note { border-left: 2px solid #ba9470; padding-left: 14px; margin-top: 30px; }
+.viewport { height: min(65vh, 660px); min-height: 380px; position: relative; background: #eee6d7; border-radius: 90px 8px 8px 8px; overflow: hidden; }
+.scene { width: 100%; height: 100%; }
+canvas { display: block; }
+.caption { position: absolute; bottom: 20px; left: 24px; font-size: 11px; color: #645e50; pointer-events: none; }
+.error { position: absolute; inset: 0; display: grid; place-content: center; padding: 32px; background: #eee6d7; text-align: center; }
+[hidden] { display: none !important; }
+button { padding: 12px 20px; border: 0; border-radius: 5px; background: #405953; color: white; cursor: pointer; font: inherit; }
+button:focus-visible { outline: 3px solid #a4533e; outline-offset: 4px; }
+footer { display: flex; justify-content: space-between; gap: 16px; border-top: 1px solid #d8d1c1; padding-top: 22px; font-size: 12px; color: #80785f; }
+@media (max-width: 760px) { #app { padding: 20px; } main { grid-template-columns: 1fr; gap: 20px; } h2 { margin: 12px 0; } .intro > p:not(.eyebrow) { max-width: none; } .viewport { height: 420px; min-height: 320px; border-top-left-radius: 50px; } .badge { max-width: 120px; line-height: 1.6; } footer { flex-direction: column; } }
