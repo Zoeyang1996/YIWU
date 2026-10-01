@@ -1,11 +1,12 @@
 import type { AssetRecord } from '../types/assets';
 
-// 这是制作清单，不是已存在模型的加载列表。占位场景不请求这些资产。
+// “ready”表示当前原型可用，不表示正式美术已由用户验收。
 export const assets: AssetRecord[] = [
-  { id: 'gateway_main', name: '总览牌楼', category: 'architecture', status: 'planned', url: '/public/models/gateway_main.glb' },
-  { id: 'road_main', name: '浅弯主街', category: 'roads', status: 'planned', url: '/public/models/road_main.glb' },
-  { id: 'stall_sample', name: '首个摊位样板（待选）', category: 'stalls', status: 'planned', url: '/public/models/stall_sample.glb' },
-  { id: 'character_player', name: '主角（身份待定）', category: 'characters', status: 'planned', url: '/public/models/character_player.glb' },
-  { id: 'product_sample', name: '环绕商品样板（待选）', category: 'products', status: 'planned', url: '/public/models/product_sample.glb' },
-  { id: 'prop_lantern', name: '环境灯笼', category: 'props', status: 'planned', url: '/public/models/prop_lantern.glb' },
+  { id: 'gateway_main', name: '牌楼与青瓦建筑样板', category: 'architecture', status: 'ready', source: '程序化三维模型，参考图结构与配色' },
+  { id: 'road_main', name: '有界石板主街', category: 'roads', status: 'ready', source: '程序化三维模型' },
+  { id: 'stalls_four', name: '玩具、灯铺、书铺、茶食', category: 'stalls', status: 'ready', source: '程序化三维模型' },
+  { id: 'reference_stall', name: '用户参考摊位', category: 'stalls', status: 'ready', url: '/assets/models/stalls/reference-stall.glb', source: '用户指定参考目录中的 Tripo GLB，本地原型接入' },
+  { id: 'characters', name: '漫游主角与四摊摊主', category: 'characters', status: 'ready', source: '程序化角色样板，主角身份未定' },
+  { id: 'products_six', name: '六件环绕商品样板', category: 'products', status: 'ready', source: '程序化完整体积模型，商品信息为演示' },
+  { id: 'prop_lantern', name: '环境灯笼与道具', category: 'props', status: 'ready', source: '程序化三维模型' },
 ];
