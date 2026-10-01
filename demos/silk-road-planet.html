@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>海上丝绸之路 · 方案一「星海航球」</title>
+<style>
+  :root {
+    --paper: #f3ead6;
+    --paper-deep: #e8dcc0;
+    --ink: #4a3f33;
+    --vermilion: #b6452f;
+    --teal: #2c5f63;
+    --gold: #d9a441;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; }
+  body {
+    font-family: "Songti SC", "STSong", "Noto Serif SC", serif;
+    background:
+      radial-gradient(120% 90% at 70% 12%, #f8f1de 0%, #f3ead6 42%, #e3e4d4 78%, #cfd8cd 100%);
+    color: var(--ink);
+  }
+  #app { position: fixed; inset: 0; }
+  #app canvas { display: block; }
+
+  /* ---------- 页眉 ---------- */
+  header {
+    position: fixed; top: 22px; left: 26px; z-index: 10;
+    display: flex; align-items: center; gap: 14px;
+    pointer-events: none; user-select: none;
+  }
+  .seal {
+    width: 58px; height: 58px; border-radius: 10px;
+    background: var(--vermilion);
+    color: #fdf6e7; font-size: 21px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    writing-mode: vertical-rl; letter-spacing: 2px;
+    box-shadow: 0 3px 10px rgba(182, 69, 47, .35), inset 0 0 0 2px rgba(253,246,231,.55);
+    transform: rotate(-3deg);
+  }
+  .title h1 { font-size: 26px; letter-spacing: 8px; font-weight: 700; }
+  .title p { margin-top: 6px; font-size: 13px; letter-spacing: 4px; opacity: .75; }
+
+  /* ---------- 方案切换 ---------- */
+  .switch {
+    position: fixed; top: 26px; right: 26px; z-index: 10;
+    font-size: 13px; letter-spacing: 2px;
+  }
+  .switch a {
+    display: inline-block; padding: 9px 16px; margin-left: 8px;
+    border: 1.5px solid var(--ink); border-radius: 999px;
+    color: var(--ink); text-decoration: none; background: rgba(243,234,214,.7);
+    transition: all .2s;
+  }
+  .switch a.on { background: var(--ink); color: var(--paper); }
+  .switch a:hover { box-shadow: 0 2px 8px rgba(74,63,51,.3); }
+
+  /* ---------- 港口名册 ---------- */
+  #portList {
+    position: fixed; left: 26px; top: 50%; transform: translateY(-50%);
+    z-index: 10; display: flex; flex-direction: column; gap: 10px;
+  }
+  .port-chip {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 14px 7px 10px; border-radius: 999px;
+    background: rgba(243, 234, 214, .82); border: 1.5px solid rgba(74,63,51,.45);
+    font-size: 14px; letter-spacing: 3px; cursor: pointer; user-select: none;
+    transition: all .2s; backdrop-filter: blur(2px);
+  }
+  .port-chip i {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--teal); transition: all .2s; flex: none;
+  }
+  .port-chip:hover { transform: translateX(4px); box-shadow: 0 3px 10px rgba(74,63,51,.22); }
+  .port-chip.cur { background: var(--vermilion); border-color: var(--vermilion); color: #fdf6e7; }
+  .port-chip.cur i { background: var(--gold); }
+
+  /* ---------- 底部提示 ---------- */
+  #hint {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    z-index: 10; font-size: 13px; letter-spacing: 3px; opacity: .8;
+    background: rgba(243,234,214,.78); padding: 8px 22px; border-radius: 999px;
+    border: 1px solid rgba(74,63,51,.3); user-select: none; pointer-events: none;
+    white-space: nowrap;
+  }
+
+  /* ---------- 抵达卡片 ---------- */
+  #arriveCard {
+    position: fixed; bottom: 72px; left: 50%; transform: translateX(-50%) translateY(24px);
+    z-index: 20; width: min(430px, 86vw);
+    background: linear-gradient(160deg, #f8f1de, #efe3c8);
+    border: 1.5px solid var(--ink); border-radius: 14px;
+    box-shadow: 0 12px 34px rgba(74,63,51,.3);
+    padding: 20px 24px 18px; opacity: 0; pointer-events: none;
+    transition: all .45s cubic-bezier(.2,.9,.3,1.2);
+  }
+  #arriveCard.show { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
+  #arriveCard h2 { font-size: 24px; letter-spacing: 6px; display: flex; align-items: baseline; gap: 10px; }
+  #arriveCard h2 small { font-size: 12px; letter-spacing: 2px; color: var(--vermilion); }
+  #arriveCard .line { height: 1px; background: linear-gradient(90deg, var(--ink), transparent); margin: 10px 0; opacity: .5; }
+  #arriveCard p { font-size: 14px; line-height: 1.8; letter-spacing: 1.5px; opacity: .88; }
+  #arriveCard .row { display: flex; gap: 12px; margin-top: 14px; }
+  #arriveCard button {
+    flex: 1; padding: 11px 0; font-size: 15px; letter-spacing: 4px;
+    font-family: inherit; border-radius: 9px; cursor: pointer; transition: all .2s;
+  }
+  #btnExplore { background: var(--vermilion); color: #fdf6e7; border: none; box-shadow: 0 4px 12px rgba(182,69,47,.35); }
+  #btnExplore:hover { transform: translateY(-2px); box-shadow: 0 7px 16px rgba(182,69,47,.4); }
+  #btnSail { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+  #btnSail:hover { background: rgba(74,63,51,.08); }
+
+  /* ---------- 二级页占位 ---------- */
+  #stub {
+    position: fixed; inset: 0; z-index: 40; display: none;
+    align-items: center; justify-content: center;
+    background: rgba(44, 95, 99, .28); backdrop-filter: blur(4px);
+  }
+  #stub.show { display: flex; }
+  #stub .panel {
+    width: min(460px, 88vw); background: linear-gradient(160deg, #f8f1de, #eee1c4);
+    border: 2px solid var(--ink); border-radius: 16px; padding: 34px 32px 28px;
+    box-shadow: 0 20px 50px rgba(40,40,40,.35); text-align: center;
+  }
+  #stub h3 { font-size: 22px; letter-spacing: 5px; }
+  #stub p { margin: 16px 0 22px; font-size: 14px; line-height: 2; letter-spacing: 1.5px; opacity: .85; }
+  #stub button {
+    padding: 11px 34px; font-size: 15px; letter-spacing: 4px; font-family: inherit;
+    background: var(--ink); color: var(--paper); border: none; border-radius: 9px; cursor: pointer;
+  }
+
+  @media (max-width: 720px) {
+    #portList { left: 12px; gap: 7px; }
+    .port-chip { font-size: 12px; padding: 5px 10px 5px 8px; letter-spacing: 2px; }
+    header { left: 14px; top: 14px; gap: 10px; }
+    .title h1 { font-size: 19px; letter-spacing: 4px; }
+    .title p { font-size: 11px; }
+    .seal { width: 46px; height: 46px; font-size: 16px; }
+    .switch { top: 16px; right: 12px; }
+    .switch a { padding: 6px 10px; font-size: 11px; margin-left: 4px; }
+    #hint { font-size: 11px; letter-spacing: 1px; padding: 7px 12px; }
+  }
+</style>
+<script type="importmap">
+  { "imports": { "three": "./vendor/three.module.js" } }
+</script>
+</head>
+<body>
+<div id="app"></div>
+
+<header>
+  <div class="seal">海丝</div>
+  <div class="title">
+    <h1>海上丝绸之路</h1>
+    <p>方案一 · 星海航球 —— 滚轮驱动福船，逐港远航</p>
+  </div>
+</header>
+
+<div class="switch">
+  <a class="on" href="./silk-road-planet.html">方案一 · 星球</a>
+  <a href="./silk-road-scroll.html">方案二 · 画卷</a>
+</div>
+
+<nav id="portList" aria-label="港口名册"></nav>
+<div id="hint">滚轮 · 福船依次远航　｜　拖拽 · 转动星球　｜　点击港口 · 直航</div>
+
+<section id="arriveCard" aria-live="polite">
+  <h2><span id="portName">泉州</span><small id="portTag">刺桐古港</small></h2>
+  <div class="line"></div>
+  <p id="portIntro"></p>
+  <div class="row">
+    <button id="btnExplore">下船探索</button>
+    <button id="btnSail">继续启航</button>
+  </div>
+</section>
+
+<div id="stub">
+  <div class="panel">
+    <h3 id="stubTitle">泉州港 · 市集</h3>
+    <p>港口街巷、摊主对话与商品详情（二至四级页面）<br/>将按 YIWU2 方案文档在下一版接入，<br/>本次先验收一级页面的航行与观感。</p>
+    <button id="stubClose">返回甲板</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ================= 配色与材质 ================= */
+const C = {
+  paper: 0xf3ead6, ink: 0x4a3f33,
+  sea: 0x3d7f7c, seaDeep: 0x2c5f63, foam: 0xf8f4e8,
+  land: 0x79a888, landDark: 0x5d8a6e, sand: 0xe6d3a3, hill: 0x9db88a,
+  wood: 0x8a5a3b, woodDark: 0x6d452c,
+  tile: 0x3f6b5f, tileBlue: 0x37606e, wall: 0xefe3c8,
+  vermilion: 0xb6452f, gold: 0xd9a441,
+  cloud: 0xfbf7ec, mountain: 0x6f9484,
+};
+
+const gradientMap = (() => {
+  const data = new Uint8Array([90, 150, 210, 255]);
+  const tex = new THREE.DataTexture(data, 4, 1, THREE.RedFormat);
+  tex.minFilter = tex.magFilter = THREE.NearestFilter;
+  tex.needsUpdate = true;
+  return tex;
+})();
+const toon = (color, extra = {}) =>
+  new THREE.MeshToonMaterial({ color, gradientMap, ...extra });
+const basic = (color, extra = {}) => new THREE.MeshBasicMaterial({ color, ...extra });
+
+/* 墨色描边（反向壳） */
+function outline(mesh, scale = 1.05, color = 0x3d332a) {
+  const o = new THREE.Mesh(mesh.geometry, basic(color, { side: THREE.BackSide }));
+  o.scale.multiplyScalar(scale);
+  o.position.copy(mesh.position);
+  o.rotation.copy(mesh.rotation);
+  mesh.parent?.add(o);
+  return o;
+}
+
+/* ================= 基础场景 ================= */
+const app = document.getElementById('app');
+let renderer = null;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+} catch (err) {
+  showFatal();
+  throw err;
+}
+function showFatal() {
+  const div = document.createElement('div');
+  div.style.cssText = 'position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;background:#f3ead6;color:#4a3f33;font-size:15px;letter-spacing:2px;text-align:center;line-height:2.2;';
+  div.innerHTML = '<div>当前浏览器无法创建三维画布（WebGL）。<br/>请更换支持 WebGL 的浏览器后重试。<br/><button onclick="location.reload()" style="margin-top:14px;padding:10px 30px;font-size:15px;letter-spacing:4px;font-family:inherit;background:#4a3f33;color:#f3ead6;border:none;border-radius:9px;cursor:pointer;">重新加载</button></div>';
+  document.body.appendChild(div);
+}
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+app.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 200);
+camera.position.set(0, 5.5, 36);
+camera.lookAt(0, 0.5, 0);
+
+scene.add(new THREE.AmbientLight(0xfff4dd, 1.05));
+const sun = new THREE.DirectionalLight(0xffe9c4, 1.7);
+sun.position.set(14, 20, 18);
+scene.add(sun);
+const rim = new THREE.DirectionalLight(0xbfe0da, 0.5);
+rim.position.set(-16, 6, -10);
+scene.add(rim);
+
+/* ================= 星球 ================= */
+const R = 10;
+const planet = new THREE.Group();
+scene.add(planet);
+
+function latLon(lat, lon, r = R) {
+  const la = THREE.MathUtils.degToRad(lat);
+  const lo = THREE.MathUtils.degToRad(lon);
+  return new THREE.Vector3(
+    r * Math.cos(la) * Math.sin(lo),
+    r * Math.sin(la),
+    r * Math.cos(la) * Math.cos(lo)
+  );
+}
+/* 以某经纬点为“上方向”的朝向 */
+function upQuat(lat, lon) {
+  const up = latLon(lat, lon, 1).normalize();
+  return new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), up);
+}
+
+const ocean = new THREE.Mesh(new THREE.SphereGeometry(R, 56, 40), toon(C.sea));
+planet.add(ocean);
+
+/* 海面白色浪弧 */
+const foamArcs = new THREE.Group();
+for (let i = 0; i < 5; i++) {
+  const arc = new THREE.Mesh(
+    new THREE.TorusGeometry(0.7 + Math.random() * 0.8, 0.04, 6, 28, Math.PI * (0.5 + Math.random() * 0.5)),
+    basic(C.foam)
+  );
+  const lat = -40 + Math.random() * 80, lon = -180 + Math.random() * 360;
+  arc.position.copy(latLon(lat, lon, R + 0.03));
+  arc.quaternion.copy(upQuat(lat, lon));
+  arc.rotateX(-Math.PI / 2);
+  arc.rotateZ(Math.random() * Math.PI * 2);
+  foamArcs.add(arc);
+}
+planet.add(foamArcs);
+
+/* ---------- 大陆与岛屿 ---------- */
+const rand = (() => { let s = 42; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
+
+function addBlob(lat, lon, radius, color, squash = 0.55, lift = 0) {
+  const g = new THREE.SphereGeometry(radius, 16, 12);
+  const m = new THREE.Mesh(g, toon(color));
+  m.position.copy(latLon(lat, lon, R - radius * squash * 0.55 + lift));
+  m.quaternion.copy(upQuat(lat, lon));
+  m.scale.set(1, squash, 1);
+  planet.add(m);
+  return m;
+}
+function addCone(lat, lon, r, h, color, lift = 0) {
+  const m = new THREE.Mesh(new THREE.ConeGeometry(r, h, 7), toon(color));
+  m.position.copy(latLon(lat, lon, R + h * 0.32 + lift));
+  m.quaternion.copy(upQuat(lat, lon));
+  planet.add(m);
+  return m;
+}
+function addTree(lat, lon, s = 1, lift = 0) {
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05 * s, 0.07 * s, 0.3 * s, 5), toon(C.woodDark));
+  trunk.position.y = 0.15 * s;
+  const crown = new THREE.Mesh(new THREE.ConeGeometry(0.26 * s, 0.62 * s, 6), toon(C.landDark));
+  crown.position.y = 0.55 * s;
+  g.add(trunk, crown);
+  g.position.copy(latLon(lat, lon, R + lift));
+  g.quaternion.copy(upQuat(lat, lon));
+  planet.add(g);
+}
+
+/* 陆地群：围绕每座港口铺一片洲，另加两座纯观赏岛。
+   landTop(p.r) ≈ 陆面高出海面的距离，供山峦、树木、城镇落位 */
+const landTop = r => 0.12 + r * 0.26;
+const landPatches = [
+  { lat: 30, lon: -62, r: 2.9 }, { lat: 14, lon: -36, r: 2.6 },
+  { lat: -1, lon: -13, r: 2.3 }, { lat: -15, lon: 12, r: 2.4 },
+  { lat: 1, lon: 38, r: 2.5 },  { lat: 20, lon: 62, r: 2.7 },
+  { lat: -34, lon: -60, r: 1.7 }, { lat: 42, lon: 20, r: 1.5 },
+];
+for (const p of landPatches) {
+  addBlob(p.lat, p.lon, p.r + 0.28, C.sand, 0.5, -0.04);     // 沙岸（只露一圈滩涂）
+  addBlob(p.lat, p.lon, p.r, C.land, 0.58, 0.12);            // 草地
+  addBlob(p.lat + p.r * 0.28, p.lon + p.r * 0.2, p.r * 0.5, C.hill, 0.62, landTop(p.r) * 0.7);
+  const top = landTop(p.r);
+  const nM = 1 + Math.floor(rand() * 2);
+  for (let i = 0; i < nM; i++)                              // 山峦
+    addCone(p.lat + (rand() - 0.5) * p.r, p.lon + (rand() - 0.5) * p.r,
+      0.5 + rand() * 0.5, 1.2 + rand() * 1.3, C.mountain, top * 0.75);
+  const nT = 2 + Math.floor(rand() * 3);
+  for (let i = 0; i < nT; i++)                              // 树木
+    addTree(p.lat + (rand() - 0.5) * p.r * 1.2, p.lon + (rand() - 0.5) * p.r * 1.2,
+      0.8 + rand() * 0.7, top * 0.8);
+}
+
+/* ---------- 港口 ---------- */
+const PORTS = [
+  { name: '泉州',   tag: '刺桐古港',   lat: 28, lon: -58, intro: '宋元东方第一大港，市舶司所在。刺桐花开的季节，万商云集，香料与瓷器在此交换。' },
+  { name: '广州',   tag: '千年商都',   lat: 13, lon: -33, intro: '蕃坊错落，珠玑、象牙与香料由此上岸，是海丝路上最老的门户之一。' },
+  { name: '占城',   tag: '中南半岛',   lat: -2, lon: -11, intro: '今越南中部古港。占城稻与沉香的故乡，商船在此补给淡水和食粮。' },
+  { name: '马六甲', tag: '海峡咽喉',   lat: -15, lon: 13, intro: '东西航路的十字路口。各国商船在此候风换货，港口昼夜喧闹。' },
+  { name: '古里',   tag: '胡椒海岸',   lat: 1, lon: 39,   intro: '印度西岸卡利卡特。胡椒、宝石与细棉布堆满码头，郑和船队曾在此立碑。' },
+  { name: '忽鲁谟斯', tag: '波斯湾明珠', lat: 20, lon: 63,  intro: '霍尔木兹古城。珍珠、地毯、良马与琉璃汇聚，西行航路的繁华终点。' },
+];
+
+function makeHouse(w, d, h, roofColor) {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), toon(C.wall));
+  body.position.y = h / 2;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.78, h * 0.75, 4), toon(roofColor));
+  roof.position.y = h + h * 0.36;
+  roof.rotation.y = Math.PI / 4;
+  g.add(body, roof);
+  return g;
+}
+function makePagoda(s = 1) {
+  const g = new THREE.Group();
+  let y = 0;
+  for (let i = 0; i < 3; i++) {
+    const w = (0.55 - i * 0.12) * s;
+    const tier = new THREE.Mesh(new THREE.CylinderGeometry(w, w * 1.06, 0.34 * s, 6), toon(C.wall));
+    tier.position.y = y + 0.17 * s;
+    const eave = new THREE.Mesh(new THREE.ConeGeometry(w * 1.5, 0.24 * s, 6), toon(C.vermilion));
+    eave.position.y = y + 0.42 * s;
+    g.add(tier, eave);
+    y += 0.5 * s;
+  }
+  const spire = new THREE.Mesh(new THREE.ConeGeometry(0.1 * s, 0.4 * s, 6), toon(C.gold));
+  spire.position.y = y + 0.1 * s;
+  g.add(spire);
+  return g;
+}
+function makeLighthouse(s = 1) {
+  const g = new THREE.Group();
+  const tower = new THREE.Mesh(new THREE.CylinderGeometry(0.16 * s, 0.24 * s, 1.1 * s, 8), toon(C.wall));
+  tower.position.y = 0.55 * s;
+  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.19 * s, 0.21 * s, 0.14 * s, 8), toon(C.vermilion));
+  band.position.y = 0.82 * s;
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.14 * s, 8, 6),
+    basic(C.gold));
+  lamp.position.y = 1.2 * s;
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(0.2 * s, 0.22 * s, 8), toon(C.tileBlue));
+  cap.position.y = 1.38 * s;
+  g.add(tower, band, lamp, cap);
+  return g;
+}
+function makeLantern(s = 1) {
+  const g = new THREE.Group();
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.025 * s, 0.025 * s, 0.7 * s, 4), toon(C.woodDark));
+  pole.position.y = 0.35 * s;
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.11 * s, 8, 6), basic(C.vermilion));
+  lamp.scale.y = 0.85;
+  lamp.position.y = 0.72 * s;
+  g.add(pole, lamp);
+  return g;
+}
+function makeDock(s = 1) {
+  const g = new THREE.Group();
+  const plank = new THREE.Mesh(new THREE.BoxGeometry(0.5 * s, 0.06 * s, 1.6 * s), toon(C.wood));
+  plank.position.y = 0.1 * s;
+  g.add(plank);
+  for (const dz of [-0.65, 0, 0.65]) {
+    for (const dx of [-0.2, 0.2]) {
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04 * s, 0.04 * s, 0.26 * s, 5), toon(C.woodDark));
+      post.position.set(dx * s, 0, dz * s);
+      g.add(post);
+    }
+  }
+  return g;
+}
+
+function makeLabel(text) {
+  const cv = document.createElement('canvas');
+  cv.width = 320; cv.height = 128;
+  const ctx = cv.getContext('2d');
+  ctx.clearRect(0, 0, 320, 128);
+  ctx.font = '700 62px "STKaiti", "KaiTi", "Songti SC", serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(243,234,214,.85)';
+  const w = ctx.measureText(text).width + 56;
+  ctx.beginPath();
+  ctx.roundRect(160 - w / 2, 26, w, 76, 38);
+  ctx.fill();
+  ctx.strokeStyle = '#4a3f33'; ctx.lineWidth = 4; ctx.stroke();
+  ctx.fillStyle = '#4a3f33';
+  ctx.fillText(text, 160, 66);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.anisotropy = 4;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true }));
+  sp.scale.set(3.4, 1.36, 1);
+  return sp;
+}
+
+const portHits = [];
+const lanternLights = [];
+PORTS.forEach((p, idx) => {
+  const q = upQuat(p.lat, p.lon);
+  const base = latLon(p.lat, p.lon, R + 0.68);   // 落在陆面上
+  const town = new THREE.Group();
+  town.position.copy(base);
+  town.quaternion.copy(q);
+
+  const n = 4 + (idx % 3);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + idx;
+    const rr = 0.55 + (i % 2) * 0.35;
+    const house = makeHouse(0.42, 0.38, 0.34 + (i % 2) * 0.12,
+      [C.tile, C.tileBlue, C.vermilion][i % 3]);
+    house.position.set(Math.cos(a) * rr, 0, Math.sin(a) * rr);
+    house.rotation.y = a + Math.PI / 2;
+    town.add(house);
+  }
+  const landmark = idx % 2 === 0 ? makePagoda(0.9) : makeLighthouse(1.0);
+  landmark.position.set(0, 0, 0);
+  town.add(landmark);
+
+  const dock = makeDock(1.0);
+  dock.position.set(0, 0.02, 1.35);      // 伸向海面
+  town.add(dock);
+
+  for (let i = 0; i < 3; i++) {
+    const ln = makeLantern(1);
+    ln.position.set(-0.5 + i * 0.5, 0, 0.9);
+    town.add(ln);
+    lanternLights.push(ln.children[1]);
+  }
+
+  const label = makeLabel(p.name);
+  label.position.set(0, 2.1, 0);
+  town.add(label);
+  p.label = label;
+
+  const hit = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.4, 2.4, 8),
+    basic(0xffffff, { visible: false }));
+  hit.position.y = 0.8;
+  hit.userData.portIndex = idx;
+  town.add(hit);
+  portHits.push(hit);
+
+  planet.add(town);
+  p.town = town;
+});
+
+/* ---------- 祥云环绕 ---------- */
+const clouds = new THREE.Group();
+function makeCloud(s = 1) {
+  const g = new THREE.Group();
+  const n = 3 + Math.floor(rand() * 3);
+  for (let i = 0; i < n; i++) {
+    const puff = new THREE.Mesh(new THREE.SphereGeometry(0.5 * s * (0.7 + rand() * 0.6), 10, 8), toon(C.cloud));
+    puff.position.set((i - n / 2) * 0.55 * s, (rand() - 0.5) * 0.2 * s, (rand() - 0.5) * 0.3 * s);
+    puff.scale.y = 0.62;
+    g.add(puff);
+  }
+  return g;
+}
+for (let i = 0; i < 8; i++) {
+  const cl = makeCloud(0.8 + rand() * 1.1);
+  const a = (i / 8) * Math.PI * 2;
+  cl.position.set(Math.cos(a) * (14 + rand() * 4), -3 + rand() * 9, Math.sin(a) * (14 + rand() * 4));
+  clouds.add(cl);
+}
+scene.add(clouds);
+
+/* 纸太阳 */
+const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(1.8, 40), basic(C.vermilion));
+sunDisc.position.set(15.5, 9.5, -24);
+sunDisc.lookAt(camera.position);
+scene.add(sunDisc);
+
+/* ================= 福船 ================= */
+function makeJunk() {
+  const g = new THREE.Group();
+  const hullMat = toon(C.wood);
+  /* 船体：中段 + 翘头翘尾 */
+  const mid = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.32, 1.9), hullMat);
+  mid.position.y = 0.16;
+  const bow = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.3, 0.5), hullMat);
+  bow.position.set(0, 0.28, 1.1); bow.rotation.x = -0.45;
+  const stern = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 0.45), hullMat);
+  stern.position.set(0, 0.3, -1.05); stern.rotation.x = 0.5;
+  const rail = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.08, 1.95), toon(C.woodDark));
+  rail.position.y = 0.34;
+  g.add(mid, bow, stern, rail);
+
+  /* 双桅朱帆 */
+  for (const [z, h] of [[0.35, 1.5], [-0.55, 1.1]]) {
+    const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, h, 5), toon(C.woodDark));
+    mast.position.set(0, 0.34 + h / 2, z);
+    g.add(mast);
+    const sailGeo = new THREE.PlaneGeometry(0.85, h * 0.62, 6, 1);
+    const pos = sailGeo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      pos.setZ(i, Math.sin((x / 0.85 + 0.5) * Math.PI) * 0.13); // 帆面微鼓
+    }
+    sailGeo.computeVertexNormals();
+    const sail = new THREE.Mesh(sailGeo, toon(C.vermilion, { side: THREE.DoubleSide }));
+    sail.position.set(0, 0.42 + h * 0.55, z + 0.06);
+    g.add(sail);
+    const batten = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.03, 0.03), toon(C.gold));
+    batten.position.set(0, 0.42 + h * 0.55 + h * 0.31, z + 0.06);
+    g.add(batten);
+  }
+  const flag = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.3, 4), basic(C.gold));
+  flag.rotation.z = -Math.PI / 2;
+  flag.position.set(0.18, 2.0, 0.35);
+  g.add(flag);
+  return g;
+}
+
+const ship = makeJunk();
+ship.scale.setScalar(1.15);
+planet.add(ship);
+
+/* ================= 航行逻辑 ================= */
+let curPort = 0, sailing = false, sailT = 0, sailFrom = null, sailTo = null;
+const SAIL_TIME = 1.6;
+const arriveCard = document.getElementById('arriveCard');
+const chips = [];
+
+const portListEl = document.getElementById('portList');
+PORTS.forEach((p, i) => {
+  const chip = document.createElement('div');
+  chip.className = 'port-chip';
+  chip.innerHTML = `<i></i><span>${p.name}</span>`;
+  chip.addEventListener('click', () => sailToPort(i));
+  portListEl.appendChild(chip);
+  chips.push(chip);
+});
+
+function placeShip(lat, lon) {
+  ship.position.copy(latLon(lat, lon, R + 0.12));
+  ship.quaternion.copy(upQuat(lat, lon));
+}
+function markChip(i) {
+  chips.forEach((c, k) => c.classList.toggle('cur', k === i));
+}
+function showCard(i) {
+  const p = PORTS[i];
+  document.getElementById('portName').textContent = p.name;
+  document.getElementById('portTag').textContent = p.tag;
+  document.getElementById('portIntro').textContent = p.intro;
+  arriveCard.classList.add('show');
+}
+function hideCard() { arriveCard.classList.remove('show'); }
+
+function sailToPort(i) {
+  if (sailing || i === curPort) return;
+  hideCard();
+  sailing = true; sailT = 0;
+  sailFrom = { lat: ship.userData.lat ?? PORTS[curPort].lat, lon: ship.userData.lon ?? PORTS[curPort].lon };
+  sailTo = { lat: PORTS[i].lat, lon: PORTS[i].lon };
+  curPort = i;
+  markChip(i);
+}
+const easeInOut = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+placeShip(PORTS[0].lat, PORTS[0].lon);
+ship.userData = { lat: PORTS[0].lat, lon: PORTS[0].lon };
+markChip(0);
+
+/* URL 直航参数：?port=2 打开指定港口（供后续二级页面入口复用） */
+{
+  const q = new URLSearchParams(location.search).get('port');
+  if (q !== null) {
+    const i = Math.min(Math.max(parseInt(q, 10) || 0, 0), PORTS.length - 1);
+    setTimeout(() => sailToPort(i), 400);
+  }
+}
+
+/* 滚轮切港 */
+let wheelLock = 0;
+addEventListener('wheel', (e) => {
+  const now = performance.now();
+  if (sailing || now - wheelLock < 420 || Math.abs(e.deltaY) < 6) return;
+  wheelLock = now;
+  const dir = e.deltaY > 0 ? 1 : -1;
+  sailToPort((curPort + dir + PORTS.length) % PORTS.length);
+}, { passive: true });
+
+/* 卡片按钮 */
+document.getElementById('btnSail').addEventListener('click', hideCard);
+document.getElementById('btnExplore').addEventListener('click', () => {
+  document.getElementById('stubTitle').textContent = `${PORTS[curPort].name}港 · 市集`;
+  hideCard();
+  document.getElementById('stub').classList.add('show');
+});
+document.getElementById('stubClose').addEventListener('click', () =>
+  document.getElementById('stub').classList.remove('show'));
+
+/* 拖拽转动星球 + 点击港口 */
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+let dragging = false, moved = 0, px = 0, py = 0;
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  dragging = true; moved = 0; px = e.clientX; py = e.clientY;
+});
+addEventListener('pointermove', (e) => {
+  if (!dragging) return;
+  const dx = e.clientX - px, dy = e.clientY - py;
+  moved += Math.abs(dx) + Math.abs(dy);
+  planet.rotation.y += dx * 0.0045;
+  planet.rotation.x = THREE.MathUtils.clamp(planet.rotation.x + dy * 0.002, -0.45, 0.45);
+  px = e.clientX; py = e.clientY;
+  idleTimer = 0;
+});
+addEventListener('pointerup', (e) => {
+  dragging = false;
+  if (moved < 6) {
+    pointer.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(portHits, false);
+    if (hits.length) sailToPort(hits[0].object.userData.portIndex);
+  }
+});
+
+/* ================= 动画循环 ================= */
+const clock = new THREE.Clock();
+let idleTimer = 0;
+
+function tick() {
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  /* 航行插值 */
+  if (sailing) {
+    sailT += dt / SAIL_TIME;
+    const k = easeInOut(Math.min(sailT, 1));
+    const lat = THREE.MathUtils.lerp(sailFrom.lat, sailTo.lat, k);
+    let dLon = sailTo.lon - sailFrom.lon;
+    if (dLon > 180) dLon -= 360;
+    if (dLon < -180) dLon += 360;
+    const lon = sailFrom.lon + dLon * k;
+    const lift = Math.sin(k * Math.PI) * 0.5;            // 航行弧线
+    ship.position.copy(latLon(lat, lon, R + 0.12 + lift));
+    ship.quaternion.copy(upQuat(lat, lon));
+    /* 船头朝向前进方向 */
+    const ahead = latLon(
+      THREE.MathUtils.lerp(sailFrom.lat, sailTo.lat, Math.min(k + 0.02, 1)),
+      sailFrom.lon + dLon * Math.min(k + 0.02, 1), R + 0.12);
+    const dir = ahead.sub(ship.position).normalize();
+    const localF = new THREE.Vector3(0, 0, 1).applyQuaternion(ship.quaternion);
+    const yaw = Math.atan2(dir.dot(new THREE.Vector3(1, 0, 0).applyQuaternion(ship.quaternion)), dir.dot(localF));
+    ship.rotateY(yaw);
+    ship.userData.lat = lat; ship.userData.lon = lon;
+    if (sailT >= 1) {
+      sailing = false;
+      ship.userData.lat = PORTS[curPort].lat;
+      ship.userData.lon = PORTS[curPort].lon;
+      showCard(curPort);
+    }
+  } else {
+    /* 停泊轻晃 */
+    ship.position.copy(latLon(ship.userData.lat, ship.userData.lon, R + 0.12 + Math.sin(t * 1.6) * 0.045));
+    ship.rotateZ(Math.sin(t * 1.3) * 0.0004);
+  }
+
+  /* 灯笼呼吸 */
+  lanternLights.forEach((l, i) => {
+    const s = 1 + Math.sin(t * 2.4 + i) * 0.12;
+    l.scale.set(s, s * 0.85, s);
+  });
+
+  /* 云层缓移 */
+  clouds.rotation.y += dt * 0.02;
+
+  /* 静置时星球缓缓自转 */
+  idleTimer += dt;
+  if (!dragging && !sailing && idleTimer > 5) planet.rotation.y += dt * 0.02;
+  if (dragging || sailing) idleTimer = 0;
+
+  renderer.render(scene, camera);
+}
+tick();
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

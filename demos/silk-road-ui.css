@@ -1,0 +1,69 @@
+button,input,select { font: inherit; }
+button { cursor: pointer; }
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible { outline: 3px solid #d9a441; outline-offset: 3px; }
+[hidden] { display: none !important; }
+.bag-trigger { position: fixed; top: 76px; right: 26px; z-index: 60; border: 1px solid #4a3f33; border-radius: 24px; padding: 9px 18px; background: #f3ead6; color: #4a3f33; }
+.bag-layer { position: fixed; inset: 0; z-index: 80; background: #183a3a88; display: grid; place-items: center; padding: 16px; backdrop-filter: blur(6px); }
+.bag-panel { width: min(660px, 100%); max-height: 90dvh; overflow: auto; padding: 26px; background: #f3ead6; border: 2px solid #4a3f33; border-radius: 16px; }
+.bag-panel h2 { letter-spacing: 5px; margin-bottom: 10px; }
+.bag-panel p { font-size: 13px; line-height: 1.8; margin: 10px 0; }
+.bag-items { margin: 20px 0; }
+.bag-item { display: flex; gap: 10px; align-items: center; padding: 14px 0; border-bottom: 1px dashed #4a3f3355; }
+.bag-item span { flex: 1; font-size: 14px; line-height: 1.7; }
+.bag-item input[type=number] { width: 52px; padding: 6px; }
+.bag-panel button { padding: 9px 12px; background: #4a3f33; color: #f3ead6; border: 0; border-radius: 8px; }
+.bag-panel footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.bag-panel footer p { width: 100%; }
+.bag-panel button:disabled { opacity: .4; cursor: default; }
+#stops { position: fixed; left: 20px; bottom: 70px; display: flex; flex-wrap: wrap; gap: 8px; max-width: 70vw; z-index: 15; }
+#stops button { background: #f3ead6ed; color: #4a3f33; border: 1px solid #4a3f3355; padding: 9px 12px; border-radius: 20px; }
+#touchPad { position: fixed; left: 16px; bottom: 58px; z-index: 18; display: none; grid-template-columns: repeat(3,42px); gap: 4px; }
+#touchPad button { height: 42px; border-radius: 10px; background: #f3ead6d9; border: 1px solid #4a3f3366; color: #4a3f33; touch-action: none; }
+#touchPad button:first-child { grid-column: 2; }
+#touchPad button:nth-child(2) { grid-column: 1; }
+#touchPad button:nth-child(4) { grid-column: 3; }
+#journeyNote { position: fixed; left: 26px; top: 96px; font-size: 12px; color: #2c5f63; background: #f3ead6d9; border-radius: 10px; padding: 8px 12px; z-index: 12; pointer-events: none; }
+#prodChoices { margin-top: 14px; display: grid; gap: 12px; }
+#prodChoices label { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+#prodChoices input,#prodChoices select { padding: 7px; max-width: 180px; background: #faf5e9; border: 1px solid #4a3f3355; border-radius: 5px; }
+#prodChoices input { width: 75px; }
+#addBag { padding: 12px; border: 0; border-radius: 9px; background: #b6452f; color: #f3ead6; }
+#addNote { font-size: 12px; min-height: 22px; color: #2c5f63; }
+#app canvas,#prodStage canvas { touch-action: none; }
+#dialog:not(.show) { visibility: hidden; }
+#dialog { max-height: calc(100dvh - 150px); overflow: auto; }
+#arrive.hide { visibility: hidden; }
+#prodStage { min-width: 0; overflow: hidden; }
+#prodInfo { min-height: 0; }
+#prodFallback { position: absolute; inset: 80px 24px; display: grid; place-items: center; text-align: center; line-height: 2; }
+@media(max-width:720px) {
+  header { max-width: calc(100% - 24px); }
+  .nav,.switch { top: 76px; right: 12px; }
+  .bag-trigger { top: 114px; right: 12px; padding: 7px 14px; }
+  #journeyNote { top: 78px; left: 14px; max-width: 56%; font-size: 11px; }
+  #hint { bottom: 8px; max-width: 94vw; white-space: normal; text-align: center; line-height: 1.6; }
+  #stops { left: auto; right: 12px; bottom: 58px; max-width: 48%; justify-content: flex-end; }
+  #stops button { font-size: 11px; padding: 7px 10px; }
+  #touchPad { display: grid; }
+  body[data-mode=dialog] #touchPad,body[data-mode=dialog] #stops,body[data-mode=product] #touchPad,body[data-mode=product] #stops,body[data-mode=arrive] #touchPad,body[data-mode=arrive] #stops { display: none; }
+  #dialog { top: auto; bottom: 48px; right: 12px; width: calc(100% - 24px); max-height: 40dvh; transform: translateY(20px); }
+  #dialog.show { transform: translateY(0); }
+  #product .panel { height: 94dvh; }
+  #prodStage { flex: none; height: 40%; min-height: 0; }
+  #prodInfo { flex: 1; border-left: none; padding: 18px; }
+  .bag-panel { padding: 20px 16px; }
+  .bag-item { flex-wrap: wrap; }
+  .bag-item span { min-width: 60%; }
+  #portList { top: 170px; transform: none; }
+  #arriveCard { bottom: 62px; }
+}
+@media(prefers-reduced-motion:reduce) { * { transition-duration: .01ms !important; } }
+
+body[data-mode=disembark] #touchPad,body[data-mode=disembark] #stops { display:none; }
+
+#mapTools { position: fixed; right: 26px; top: 130px; z-index: 15; display: flex; gap: 6px; }
+#mapTools button { padding: 8px 12px; border-radius: 20px; border: 1px solid #4a3f3355; background: #f3ead6e6; color: #4a3f33; font-size: 12px; }
+@media(max-width:720px) { #mapTools { right: 12px; top: 157px; flex-direction: column; } .switch a { letter-spacing: 1px; } }
+
+body:not([data-mode=roam]) #stops,body:not([data-mode=roam]) #touchPad { display:none; }
+body[data-mode=arrive] #hint,body[data-mode=dialog] #hint,body[data-mode=product] #hint { display:none; }
