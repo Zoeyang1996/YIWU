@@ -126,18 +126,11 @@
   <div class="seal">海丝</div>
   <div class="title">
     <h1>海上丝绸之路</h1>
-    <p>方案二 · 海图长卷 —— 展卷观图，点港入城</p>
+    <p>海图长卷</p>
   </div>
 </header>
 
-<div class="switch">
-  <a href="./silk-road-planet.html">方案一 · 星球</a>
-  <a class="on" href="./silk-road-scroll.html">方案二 · 画卷</a>
-</div>
-
-<div id="mapTools" aria-label="画卷视角"><button id="zoomIn">近览 ＋</button><button id="zoomOut">远览 －</button><button id="resetMap">全卷</button></div>
-<nav id="portList" aria-label="港口名册"></nav>
-<div id="hint">滚轮 · 缩放画卷　｜　拖拽 · 移动画卷　｜　点击港口 · 入港</div>
+<nav class="atlas-nav"><select id="portSelect" aria-label="选择港口"></select></nav>
 
 <section id="arriveCard" aria-live="polite">
   <h2><span id="portName">泉州</span><small id="portTag">刺桐古港</small></h2>
@@ -151,6 +144,7 @@
 
 <script type="module">
 import * as THREE from 'three';
+import { createArtMaterials, merchantHouse, harborShip } from './silk-road-art.js';
 import { mountCart } from './silk-road-cart.js';
 const bag=mountCart({ onToggle: () => { dragging=false; } });
 
@@ -173,6 +167,7 @@ const gradientMap = (() => {
   return tex;
 })();
 const toon = (color, extra = {}) => new THREE.MeshToonMaterial({ color, gradientMap, ...extra });
+const ART=createArtMaterials(toon);
 const basic = (color, extra = {}) => new THREE.MeshBasicMaterial({ color, ...extra });
 
 /* ================= 港口数据（画卷坐标：x ∈ [-20,20]，z ∈ [-8,8]，北负南正） =================
@@ -194,220 +189,38 @@ function mapToCanvas(x, z, cv) {
 }
 
 function paintMap() {
-  const cv = document.createElement('canvas');
-  cv.width = 2048; cv.height = 840;
-  const ctx = cv.getContext('2d');
-
-  const W = cv.width, H = cv.height;
-  const SX = W / MAP_W, SZ = H / MAP_H;          // 世界坐标 → 像素
-  const wx = x => (x + MAP_W / 2) * SX;
-  const wz = z => (z + MAP_H / 2) * SZ;
-
-  /* ---------- 宣纸底：暖纸 + 做旧 + 纤维斑 ---------- */
-  ctx.fillStyle = '#eee2c4';
-  ctx.fillRect(0, 0, W, H);
-  for (let i = 0; i < 1500; i++) {
-    ctx.fillStyle = `rgba(120,100,70,${Math.random() * 0.06})`;
-    ctx.fillRect(Math.random() * W, Math.random() * H, 1 + Math.random() * 2, 1 + Math.random());
-  }
-  const age = ctx.createRadialGradient(W / 2, H / 2, H * 0.3, W / 2, H / 2, W * 0.62);
-  age.addColorStop(0, 'rgba(0,0,0,0)');
-  age.addColorStop(1, 'rgba(122,94,52,.20)');
-  ctx.fillStyle = age;
-  ctx.fillRect(0, 0, W, H);
-
-  /* ---------- 海域：淡花青罩染，宣纸留白为海 ---------- */
-  ctx.fillStyle = 'rgba(150,184,174,.16)';
-  ctx.beginPath();
-  ctx.roundRect(40, 46, W - 80, H - 92, 90);
-  ctx.fill();
-
-  /* ---------- 工笔水波纹 ---------- */
-  ctx.strokeStyle = 'rgba(74,63,51,.20)';
-  ctx.lineWidth = 1.6;
-  for (let row = 0; row < 16; row++) {
-    for (let col = 0; col < 38; col++) {
-      const x = 70 + col * 52 + (row % 2) * 26;
-      const y = 92 + row * 46;
-      if (x > W - 60) continue;
-      ctx.beginPath();
-      ctx.arc(x, y, 13, Math.PI * 1.08, Math.PI * 1.92);
-      ctx.stroke();
+  const cv=document.createElement('canvas');cv.width=3072;cv.height=1256;
+  const ctx=cv.getContext('2d'),W=cv.width,H=cv.height;
+  const wx=x=>(x+22)/44*W,wz=z=>(z+9)/18*H;
+  const tex=new THREE.CanvasTexture(cv);tex.anisotropy=8;tex.colorSpace=THREE.SRGBColorSpace;
+  let disposed=false;
+  tex.addEventListener('dispose',()=>{disposed=true;art.onload=null;art.onerror=null;});
+  function draw(image=null) {
+    ctx.fillStyle='#e9e1ca';ctx.fillRect(0,0,W,H);
+    if(image) ctx.drawImage(image,wx(-20),wz(-8),40/44*W,16/18*H);
+    else {
+      ctx.fillStyle='#789b94';ctx.fillRect(wx(-20),wz(-8),40/44*W,16/18*H);
+      ctx.strokeStyle='rgba(234,231,207,.38)';ctx.lineWidth=.8;
+      for(let row=0;row<65;row++) {ctx.beginPath();for(let x=0;x<W;x+=5)ctx.lineTo(x,row*20+Math.sin(x*.015+row*.3)*6);ctx.stroke();}
     }
-  }
-
-  /* ---------- 陆地（青绿山水），按真实地理排布 ---------- */
-  const lands = [
-    { x: 20.8,  z: -3.8, r: 6.6,  peaks: [[-1.5, -1.2, 30], [0.8, -2.2, 38], [2.2, -0.6, 26], [-0.2, 0.6, 22], [1.6, 1.8, 18]] },   // 中原大地
-    { x: 12.6,  z: 4.6,  r: 3.2,  peaks: [[0.2, -0.8, 22], [0.9, 0.8, 18]] },                                                    // 中南半岛
-    { x: 7.2,   z: 7.0,  r: 2.2,  peaks: [[0, 0.3, 16]] },                                                                       // 马来半岛
-    { x: -8.2,  z: -1.2, r: 4.0,  peaks: [[-1.2, -1.0, 30], [0.4, -1.8, 34], [1.4, 0.2, 22], [-0.4, 1.2, 20]] },                 // 印度次大陆
-    { x: -18.4, z: -6.6, r: 3.2,  peaks: [[0.6, -0.6, 26], [-0.9, 0.5, 20]] },                                                   // 波斯海岸
-    { x: -6.4,  z: 3.8,  r: 0.85, peaks: [[0, 0, 10]] },                                                                         // 锡兰岛
-    { x: 14.8,  z: 7.2,  r: 1.1,  peaks: [[0, 0, 10]] },                                                                         // 南海洲岛
-    { x: -20.6, z: 4.8,  r: 2.0,  peaks: [[0.4, -0.3, 16]] },                                                                    // 东非一隅（卷入轴杆）
-  ];
-  for (const L of lands) {
-    const cx = wx(L.x), cy = wz(L.z), r = L.r * SX;
-    /* 赭石滩岸 */
-    ctx.fillStyle = 'rgba(203,180,137,.9)';
-    blobPath(ctx, cx, cy, r * 1.12, 11);
-    ctx.fill();
-    /* 石绿罩染 */
-    const g = ctx.createRadialGradient(cx, cy, r * 0.08, cx, cy, r);
-    g.addColorStop(0, '#a8c4a2');
-    g.addColorStop(0.7, '#86ad8c');
-    g.addColorStop(1, '#7ba889');
-    ctx.fillStyle = g;
-    blobPath(ctx, cx, cy, r, 11);
-    ctx.fill();
-    /* 墨骨勾边 */
-    ctx.strokeStyle = 'rgba(62,50,40,.8)';
-    ctx.lineWidth = 3.2;
-    ctx.stroke();
-    /* 青绿山峰 + 皴笔 */
-    for (const [dx, dz, s] of L.peaks) {
-      const px = cx + dx * SX * 0.6, py = cy + dz * SZ * 0.6;
-      /* 石青山体 */
-      ctx.fillStyle = 'rgba(93,127,138,.55)';
-      ctx.beginPath();
-      ctx.moveTo(px - s * 1.15, py + s * 0.62);
-      ctx.lineTo(px, py - s);
-      ctx.lineTo(px + s * 1.15, py + s * 0.62);
-      ctx.closePath();
-      ctx.fill();
-      /* 墨线轮廓 */
-      ctx.strokeStyle = 'rgba(62,50,40,.7)';
-      ctx.lineWidth = 2.4;
-      ctx.stroke();
-      /* 皴笔（山腰短线） */
-      ctx.strokeStyle = 'rgba(62,50,40,.4)';
-      ctx.lineWidth = 1.6;
-      for (let k = -1; k <= 1; k++) {
-        ctx.beginPath();
-        ctx.moveTo(px + k * s * 0.42, py - s * 0.1);
-        ctx.lineTo(px + k * s * 0.5, py + s * 0.5);
-        ctx.stroke();
-      }
-      /* 小卫峰 */
-      ctx.fillStyle = 'rgba(93,127,138,.4)';
-      ctx.beginPath();
-      ctx.moveTo(px + s * 1.0, py + s * 0.62);
-      ctx.lineTo(px + s * 1.5, py - s * 0.25);
-      ctx.lineTo(px + s * 2.0, py + s * 0.62);
-      ctx.closePath();
-      ctx.fill();
+    // 装裱的细金线与绢边，比粗色块边框更轻。
+    ctx.strokeStyle='#a9956e';ctx.lineWidth=1;ctx.strokeRect(wx(-20)-14,wz(-8)-14,40/44*W+28,16/18*H+28);
+    ctx.strokeStyle='rgba(229,210,159,.85)';ctx.lineWidth=2;ctx.setLineDash([6,10]);ctx.beginPath();
+    PORTS.forEach((p,i)=>{const x=wx(p.x),y=wz(p.z);if(!i)ctx.moveTo(x,y);else {const previous=PORTS[i-1];ctx.quadraticCurveTo(wx((previous.x+p.x)/2),wz(Math.max(previous.z,p.z)+.6),x,y);}});ctx.stroke();ctx.setLineDash([]);
+    for(const p of PORTS) {
+      const x=wx(p.x),y=wz(p.z);
+      ctx.fillStyle='#a45e4a';ctx.strokeStyle='#f1e6cc';ctx.lineWidth=2;
+      ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.font='34px "STKaiti","KaiTi","Songti SC",serif';ctx.textAlign='center';
+      ctx.strokeStyle='rgba(235,225,198,.85)';ctx.lineWidth=7;ctx.lineJoin='round';ctx.strokeText(p.name,x,y-26);
+      ctx.fillStyle='#344e48';ctx.fillText(p.name,x,y-26);
     }
-    /* 岸边加密浪纹 */
-    ctx.strokeStyle = 'rgba(74,63,51,.30)';
-    ctx.lineWidth = 1.8;
-    for (let a = 0; a < 12; a++) {
-      const ang = (a / 12) * Math.PI * 2;
-      ctx.beginPath();
-      ctx.arc(cx + Math.cos(ang) * r * 1.22, cy + Math.sin(ang) * r * 0.9, 11, Math.PI * 1.05, Math.PI * 1.95);
-      ctx.stroke();
-    }
+    ctx.font='24px "Songti SC",serif';ctx.fillStyle='rgba(235,223,189,.75)';ctx.textAlign='center';
+    for(const [name,x,z] of [['南海',14,1],['印度洋',-1,1],['波斯湾',-16,-6]]) name.split('').forEach((ch,i)=>ctx.fillText(ch,wx(x),wz(z)+i*32));
+    tex.needsUpdate=true;
   }
-
-  /* ---------- 云雾分断（国画留白云带） ---------- */
-  for (const [bx, bz, len, s] of [[3.2, -4.6, 7, 1.0], [-13.2, -2.4, 6, 0.9], [8.8, -1.6, 5, 0.8], [-4.5, 5.6, 5, 0.75]]) {
-    const cx = wx(bx), cy = wz(bz);
-    ctx.fillStyle = 'rgba(250,246,232,.75)';
-    for (let i = 0; i < len; i++) {
-      ctx.beginPath();
-      ctx.ellipse(cx + i * 34 * s - len * 17 * s, cy + Math.sin(i * 1.3) * 8 * s, 30 * s, 13 * s, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.strokeStyle = 'rgba(74,63,51,.25)';
-    ctx.lineWidth = 1.6;
-    for (let i = 0; i < 4; i++) {
-      ctx.beginPath();
-      ctx.arc(cx - len * 12 * s + i * 40 * s, cy - 4, 15 * s, Math.PI, Math.PI * 2);
-      ctx.stroke();
-    }
-  }
-
-  /* ---------- 航路：朱砂虚线，沿海避礁 ---------- */
-  const route = [
-    ['泉州', 15.9, -3.4], ['广州', 13.4, 0.4], ['占城', 8.2, 5.9], ['马六甲', -1.8, 3.4], ['古里', -13.4, -1.6],
-  ];
-  ctx.strokeStyle = 'rgba(182,69,47,.88)';
-  ctx.lineWidth = 4.5;
-  ctx.setLineDash([15, 11]);
-  ctx.beginPath();
-  PORTS.forEach((p, i) => {
-    const [px, py] = [wx(p.x), wz(p.z)];
-    if (i === 0) ctx.moveTo(px, py);
-    else ctx.quadraticCurveTo(wx(route[i - 1][1]), wz(route[i - 1][2]), px, py);
-  });
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  /* ---------- 港口标注：墨字 + 朱砂点 ---------- */
-  ctx.textAlign = 'center';
-  for (const p of PORTS) {
-    const px = wx(p.x), py = wz(p.z);
-    ctx.fillStyle = C.vermilionCss;
-    ctx.beginPath(); ctx.arc(px, py, 9, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = '#fdf6e7'; ctx.lineWidth = 3; ctx.stroke();
-    ctx.font = '700 44px "STKaiti", "KaiTi", "Songti SC", serif';
-    ctx.fillStyle = '#3d332a';
-    ctx.fillText(p.name, px, py - 58);
-  }
-
-  /* ---------- 海域名（竖排淡墨） ---------- */
-  ctx.fillStyle = 'rgba(74,63,51,.48)';
-  ctx.font = '38px "STKaiti", "KaiTi", "Songti SC", serif';
-  for (const [label, lx, lz] of [['南海', 17.1, 2.0], ['印度洋', -1.6, 0.6], ['阿拉伯海', -14.6, -0.9], ['波斯湾', -13.2, -3.2]]) {
-    const chars = label.split('');
-    chars.forEach((ch, i) => ctx.fillText(ch, wx(lx), wz(lz) + i * 44));
-  }
-
-  /* ---------- 题款与印章（落于印度洋上空海） ---------- */
-  ctx.fillStyle = 'rgba(62,50,40,.85)';
-  ctx.font = '700 44px "STKaiti", "KaiTi", serif';
-  '海上丝绸之路图'.split('').forEach((ch, i) => ctx.fillText(ch, wx(-3.2), wz(-6.6) + i * 50));
-  ctx.save();
-  ctx.translate(wx(-3.2), wz(-6.6) + 7 * 50 + 34);
-  ctx.fillStyle = C.vermilionCss;
-  ctx.beginPath(); ctx.roundRect(-24, -24, 48, 48, 8); ctx.fill();
-  ctx.fillStyle = '#fdf6e7';
-  ctx.font = '700 24px "STKaiti", "KaiTi", serif';
-  ctx.fillText('寳', 0, 1);
-  ctx.restore();
-
-  ctx.save();
-  ctx.translate(1920, 700);
-  ctx.rotate(-0.06);
-  ctx.fillStyle = C.vermilionCss;
-  ctx.beginPath(); ctx.roundRect(-58, -58, 116, 116, 12); ctx.fill();
-  ctx.fillStyle = '#fdf6e7';
-  ctx.font = '700 52px "STKaiti", "KaiTi", serif';
-  ctx.fillText('海', 0, -8);
-  ctx.fillText('丝', 0, 44);
-  ctx.restore();
-
-  /* ---------- 绫子边 ---------- */
-  ctx.fillStyle = 'rgba(55,96,110,.28)';
-  ctx.fillRect(0, 0, W, 18);
-  ctx.fillRect(0, H - 18, W, 18);
-
-  const tex = new THREE.CanvasTexture(cv);
-  tex.anisotropy = 8;
-  tex.colorSpace = THREE.SRGBColorSpace;
-  return tex;
-
-  function blobPath(ctx, cx, cy, r, n) {
-    ctx.beginPath();
-    for (let i = 0; i <= n; i++) {
-      const a = (i / n) * Math.PI * 2;
-      const rr = r * (0.84 + 0.16 * Math.sin(a * 3 + cx * 0.013) + 0.06 * Math.sin(a * 7 + cy * 0.02));
-      const x = cx + Math.cos(a) * rr, y = cy + Math.sin(a) * rr * 0.72;
-      i === 0 ? ctx.moveTo(x, y) : ctx.quadraticCurveTo(
-        cx + Math.cos(a - 0.3) * rr * 1.06, cy + Math.sin(a - 0.3) * rr * 0.78, x, y);
-    }
-    ctx.closePath();
-  }
+  const art=new Image();art.onload=()=>{if(!disposed)draw(art);};art.onerror=()=>{if(!disposed)draw();};
+  draw();art.src='/assets/images/silk-road/gongbi-atlas-v2.png';return tex;
 }
 
 /* ================= 场景 ================= */
@@ -437,7 +250,7 @@ camera.lookAt(0, 0, 0.6);
 camera.zoom = 1;
 function layout() {
   const aspect = innerWidth / innerHeight;
-  baseH = Math.max(10.6, 21.5 / aspect);
+  baseH = Math.max(9.8, 23 / aspect);
   camera.left = -baseH * aspect; camera.right = baseH * aspect;
   camera.top = baseH; camera.bottom = -baseH;
   camera.updateProjectionMatrix();
@@ -464,7 +277,7 @@ paperGeo.rotateX(-Math.PI / 2);
   }
   paperGeo.computeVertexNormals();
 }
-const paper = new THREE.Mesh(paperGeo, toon(0xffffff, { map: paintMap() }));
+const paper = new THREE.Mesh(paperGeo, basic(0xffffff, { map: paintMap() }));
 scrollGroup.add(paper);
 
 /* 轴杆 */
@@ -483,16 +296,7 @@ for (const side of [-1, 1]) {
 }
 
 /* ---------- 浮雕建筑 ---------- */
-function makeHouse(w, d, h, roofColor) {
-  const g = new THREE.Group();
-  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), toon(C.wall));
-  body.position.y = h / 2;
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) * 0.78, h * 0.75, 4), toon(roofColor));
-  roof.position.y = h + h * 0.36;
-  roof.rotation.y = Math.PI / 4;
-  g.add(body, roof);
-  return g;
-}
+function makeHouse(w,d,h,roofColor) { const house=merchantHouse(w,d,h,ART);return house; }
 function makePagoda(s = 1) {
   const g = new THREE.Group();
   let y = 0;
@@ -533,72 +337,24 @@ function makeLantern(s = 1) {
   g.add(pole, lamp);
   return g;
 }
-function makeJunk(s = 1) {
-  const g = new THREE.Group();
-  const hull = new THREE.Mesh(new THREE.BoxGeometry(0.8 * s, 0.28 * s, 1.7 * s), toon(C.wood));
-  hull.position.y = 0.14 * s;
-  const bow = new THREE.Mesh(new THREE.BoxGeometry(0.6 * s, 0.26 * s, 0.45 * s), toon(C.wood));
-  bow.position.set(0, 0.26 * s, 0.95 * s); bow.rotation.x = -0.45;
-  const stern = new THREE.Mesh(new THREE.BoxGeometry(0.7 * s, 0.26 * s, 0.4 * s), toon(C.wood));
-  stern.position.set(0, 0.28 * s, -0.9 * s); stern.rotation.x = 0.5;
-  g.add(hull, bow, stern);
-  const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.03 * s, 0.04 * s, 1.3 * s, 5), toon(C.woodDark));
-  mast.position.set(0, 0.9 * s, 0.15 * s);
-  g.add(mast);
-  const sailGeo = new THREE.PlaneGeometry(0.75 * s, 0.8 * s, 6, 1);
-  const pp = sailGeo.attributes.position;
-  for (let i = 0; i < pp.count; i++)
-    pp.setZ(i, Math.sin((pp.getX(i) / (0.75 * s) + 0.5) * Math.PI) * 0.1 * s);
-  sailGeo.computeVertexNormals();
-  const sail = new THREE.Mesh(sailGeo, toon(C.vermilion, { side: THREE.DoubleSide }));
-  sail.position.set(0, 0.95 * s, 0.2 * s);
-  sail.rotation.x = -0.55;          // 帆面后仰，俯视时可见朱色
-  g.add(sail);
-  return g;
-}
+function makeJunk(s=1) {const ship=harborShip(ART);ship.scale.setScalar(.35*s);return ship;}
 
 const portHits = [];
 const lanternLights = [];
 PORTS.forEach((p, idx) => {
   const town = new THREE.Group();
-  town.position.set(p.x, 0, p.z);
-  const n = 4 + (idx % 3);
-  for (let i = 0; i < n; i++) {
-    const a = (i / n) * Math.PI * 2 + idx;
-    const rr = 0.6 + (i % 2) * 0.4;
-    const house = makeHouse(0.42, 0.38, 0.34 + (i % 2) * 0.12,
-      [C.tile, C.tileBlue, C.vermilion][i % 3]);
-    house.position.set(Math.cos(a) * rr, 0.05, Math.sin(a) * rr);
-    house.rotation.y = a;
-    town.add(house);
-  }
-  town.add(idx % 2 === 0 ? makePagoda(0.85) : makeLighthouse(0.95));
-  for (let i = 0; i < 2; i++) {
-    const ln = makeLantern(1);
-    ln.position.set(-0.4 + i * 0.8, 0.05, 0.95);
-    town.add(ln);
-    lanternLights.push(ln.children[1]);
-  }
+  town.position.set(p.x, 0, p.z);town.scale.setScalar(.58);
+  // 港口与工笔建筑融为一体，只留下小型立体朱砂标记。
+  const marker=new THREE.Mesh(new THREE.CylinderGeometry(.11,.13,.06,32),basic(0x995b48));marker.position.y=.08;town.add(marker);
+  const ring=new THREE.Mesh(new THREE.TorusGeometry(.2,.012,6,40),basic(0xe7d6a8));ring.rotation.x=-Math.PI/2;ring.position.y=.06;town.add(ring);
   const hit = new THREE.Mesh(new THREE.CylinderGeometry(1.9, 1.9, 2.2, 8),
     basic(0xffffff, { visible: false }));
-  hit.position.y = 1;
+  hit.scale.set(1/.58,1,1/.58); hit.position.y = 1;
   hit.userData.portIndex = idx;
   town.add(hit);
   portHits.push(hit);
   scrollGroup.add(town);
 });
-
-/* 山峦浮雕（落在各大陆上） */
-const mountainSpots = [
-  [18.6, -6.4, 1.2], [21.2, -2.6, 1.0], [16.6, -6.8, 0.9],
-  [12.4, 5.4, 0.8], [-9.4, -2.8, 1.1], [-6.8, 0.2, 0.9],
-  [-18.8, -7.4, 1.0], [7.4, 7.4, 0.7],
-];
-for (const [x, z, s] of mountainSpots) {
-  const m = new THREE.Mesh(new THREE.ConeGeometry(0.75 * s, 1.5 * s, 7), toon(C.mountain));
-  m.position.set(x, 0.7 * s, z);
-  scrollGroup.add(m);
-}
 
 /* 装饰船（沿航路分布） */
 const decoShips = [];
@@ -607,7 +363,7 @@ for (const [x, z, ry, s] of [[13.8, -0.9, 2.6, 1], [8.2, 3.6, 2.2, 0.85], [-3.2,
   j.position.set(x, 0.06, z);
   j.rotation.y = ry;
   scrollGroup.add(j);
-  decoShips.push(j);
+  j.scale.multiplyScalar(.7);decoShips.push(j);
 }
 
 /* 浮云 + 飞鸟 */
@@ -627,7 +383,7 @@ for (let i = 0; i < 5; i++) {
   cl.position.set(-16 + Math.random() * 32, 2.2 + Math.random() * 1.4, -6 + Math.random() * 12);
   cloudsG.add(cl);
 }
-scene.add(cloudsG);
+cloudsG.visible=false;scene.add(cloudsG);
 
 const birds = new THREE.Group();
 for (let i = 0; i < 3; i++) {
@@ -667,14 +423,19 @@ renderer.domElement.addEventListener('wheel', (e) => {
   hideCard();
 }, { passive: true });
 
-let dragging = false, moved = 0, px = 0, py = 0;
+let dragging=false,moved=0,px=0,py=0,pinchDistance=0;
+const touchPoints=new Map();
 renderer.domElement.addEventListener('pointerdown', (e) => {
   if (bag.isOpen()) return;
   renderer.domElement.setPointerCapture(e.pointerId);
-  dragging = true; moved = 0; px = e.clientX; py = e.clientY;
+  touchPoints.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  dragging=true;moved=0;px=e.clientX;py=e.clientY;
+  if(touchPoints.size===2) {const [a,b]=[...touchPoints.values()];pinchDistance=Math.hypot(a.x-b.x,a.y-b.y);moved=1000;}
 });
 addEventListener('pointermove', (e) => {
-  if (!dragging) return;
+  if(!dragging)return;
+  if(touchPoints.has(e.pointerId))touchPoints.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(touchPoints.size===2) {const [a,b]=[...touchPoints.values()],distance=Math.hypot(a.x-b.x,a.y-b.y);if(pinchDistance>0){goal.zoom*=distance/pinchDistance;clampGoal();hideCard();}pinchDistance=distance;moved=1000;return;}
   const aspect = innerWidth / innerHeight;
   const scale = (baseH * 2) / innerHeight / view.zoom;
   goal.x -= (e.clientX - px) * scale;
@@ -684,6 +445,7 @@ addEventListener('pointermove', (e) => {
   clampGoal();
 });
 addEventListener('pointerup', (e) => {
+  touchPoints.delete(e.pointerId);pinchDistance=0;
   if (!dragging) return;
   dragging = false;
   if (bag.isOpen()) return;
@@ -700,19 +462,11 @@ addEventListener('pointerup', (e) => {
 /* 抵达卡片与名册 */
 const arriveCard = document.getElementById('arriveCard');
 arriveCard.inert=true;
-const chips = [];
-let curPort = 0;
-const portListEl = document.getElementById('portList');
-PORTS.forEach((p, i) => {
-  const chip = document.createElement('button');
-  chip.type='button';
-  chip.className = 'port-chip';
-  chip.innerHTML = `<i></i><span>${p.name}</span>`;
-  chip.addEventListener('click', () => flyToPort(i));
-  portListEl.appendChild(chip);
-  chips.push(chip);
-});
-function markChip(i) { chips.forEach((c, k) => c.classList.toggle('cur', k === i)); }
+let curPort=0;
+const portSelect=document.getElementById('portSelect');
+PORTS.forEach((p,i)=>{const option=document.createElement('option');option.value=i;option.textContent=p.name;portSelect.append(option);});
+portSelect.addEventListener('change',()=>flyToPort(Number(portSelect.value)));
+function markChip(i) {portSelect.value=String(i);}
 function showCard(i) {
   const p = PORTS[i];
   document.getElementById('portName').textContent = p.name;
@@ -738,8 +492,7 @@ function resetMap() {
   clampGoal();
 }
 document.getElementById('btnSail').addEventListener('click', resetMap);
-document.getElementById('resetMap').addEventListener('click', resetMap);
-for(const [id,factor] of [['zoomIn',1.2],['zoomOut',1/1.2]]) document.getElementById(id).addEventListener('click',()=> { if(bag.isOpen()) return; hideCard(); goal.zoom*=factor; clampGoal(); });
+
 document.getElementById('btnExplore').addEventListener('click', () => {
   /* 进入二级页面：港口城市 */
   location.href = `./silk-road-port.html?port=${PORTS[curPort].slug}`;
@@ -803,7 +556,7 @@ function tick() {
 }
 tick();
 
-renderer.domElement.addEventListener('pointercancel', () => { dragging=false; });
+renderer.domElement.addEventListener('pointercancel',()=>{dragging=false;touchPoints.clear();pinchDistance=0;});
 addEventListener('blur', () => { dragging=false; });
 renderer.domElement.addEventListener('webglcontextlost', e=> { e.preventDefault(); cancelAnimationFrame(sceneFrame); const panel=document.createElement('div'); panel.className='bag-layer'; panel.innerHTML='<section class="bag-panel"><h2>画卷暂时中断</h2><p>请重新加载恢复，行囊保留在本地。</p><button onclick="location.reload()">重新加载</button></section>'; document.body.append(panel); });
 addEventListener('pagehide', e => { if(e.persisted) return; cancelAnimationFrame(sceneFrame); clearTimeout(flyTimer); const geometries=new Set(), materials=new Set(), textures=new Set(); scene.traverse(o=> { if(o.geometry) geometries.add(o.geometry); for(const m of o.material ? (Array.isArray(o.material)?o.material:[o.material]):[]) { materials.add(m); for(const v of Object.values(m)) if(v?.isTexture) textures.add(v); } }); geometries.forEach(g=>g.dispose()); materials.forEach(m=>m.dispose()); textures.forEach(t=>t.dispose()); renderer.dispose(); });
