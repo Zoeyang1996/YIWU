@@ -34,13 +34,15 @@ export function mountApp(root: HTMLElement) {
   function close() { const parent = parentPath(); if (history.state?.yiwu && history.state.parent === parent) history.back(); else navigate(parent, true); }
   function overlay(name: string) { const url = new URL(location.href); url.searchParams.set('panel', name); lastFocus = document.activeElement as HTMLElement; navigate(url.pathname + url.search); }
   function makeStreet() {
+    home?.dispose(); home = undefined;
     streetScene?.dispose();
     streetScene = createOverview(host, { onError: () => { streetScene?.dispose(); streetScene = undefined; $('.scene-error').hidden = false; }, onTime: m => { market = m; updateTimeUI(); }, onProduct: id => { if (currentStall) navigate(`${pathFor()}?stall=${currentStall}&product=${id}`); }, onApproach: name => toast(`正走向「${name}」……`), onStall: id => { if (!disposed) navigate(`${pathFor()}?stall=${id}`); } });
     currentMode = ''; currentStall = '';
   }
   function makeHome() {
+    streetScene?.dispose(); streetScene = undefined;
     home?.dispose();
-    home = createMiniatureMuseum(host, { onTime: m => { market = m; updateTimeUI(); }, onError: () => { $('.scene-error').hidden = false; } });
+    home = createMiniatureMuseum(host, { onTime: m => { market = m; updateTimeUI(); }, onError: () => { home?.dispose(); home = undefined; $('.scene-error').hidden = false; } });
     home.setTime(market);
     currentMode = ''; currentStall = '';
   }
@@ -64,7 +66,7 @@ export function mountApp(root: HTMLElement) {
     catch (err) { console.error('市集初始化失败', err); $('.scene-error').hidden = false; }
     const mode = `${street}:${market}`; if (mode !== currentMode) { streetScene?.setMode(true, market); currentMode = mode; currentStall = ''; }
     if ((stall?.id ?? '') !== currentStall) { streetScene?.focusStall(stall?.id); currentStall = stall?.id ?? ''; }
-    streetScene?.setBlocked(hasOverlay); root.classList.toggle('in-street', street); root.classList.toggle('home-mode', !street); root.classList.toggle('at-stall', !!stall); shell.inert = hasOverlay;
+    home?.setBlocked(hasOverlay); streetScene?.setBlocked(hasOverlay); root.classList.toggle('in-street', street); root.classList.toggle('home-mode', !street); root.classList.toggle('at-stall', !!stall); shell.inert = hasOverlay;
     $('.home-ui').hidden = street; $('.street-heading').hidden = !street; $('.street-tools').hidden = !street || !!stall; updateTimeUI(); save();
     if (panel.dataset.stall && !panel.hidden) scrollPositions.set(panel.dataset.stall, panel.scrollTop); panel.hidden = !stall || hasOverlay;
     if (stall) { panel.dataset.stall = stall.id; panel.innerHTML = `<div class="panel-heading"><span class="eyebrow">沿街好物 / ${marketInfo[market].name}</span><button class="icon-button" data-action="close" aria-label="离开摊位">×</button></div><h2>${stall.names[market]}</h2><p class="host-name">${stall.hosts[market]}</p><div class="dialogue"><span>“</span>${stall.lines[market]}<button data-action="greet">和掌柜打个招呼 ↗</button></div><div class="section-label">摊上好物 <span>${stall.products.length} 件</span></div><div class="product-list">${stall.products.map(id => { const p = productById(id)!; return `<button class="product-card" data-product="${id}"><span class="product-art">${productArt(p)}</span><span><strong>${p.name}</strong><small>可环绕欣赏 · 展示样品</small><b>¥ ${p.price}<em>查看 →</em></b></span></button>`; }).join('')}</div><p class="fine-print">商品与价格为体验示例，结账不会产生真实支付。</p><button class="secondary wide" data-action="close">← 回到街道，继续逛逛</button>`; panel.scrollTop = scrollPositions.get(stall.id) ?? 0; }

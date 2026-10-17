@@ -7,12 +7,15 @@ export class Orbit {
   private yawSpeed = 0;
   private pitchSpeed = 0;
   private dragging = false;
+  private blocked = false;
+  private readonly originalTouchAction: string;
   private lastX = 0;
   private lastY = 0;
   private idleFor = 0;
   private readonly position = new T.Vector3();
 
   constructor(private readonly camera: T.PerspectiveCamera, private readonly host: HTMLElement, private readonly target: T.Vector3) {
+    this.originalTouchAction = host.style.touchAction;
     host.style.touchAction = 'none';
     host.style.cursor = 'grab';
     host.addEventListener('pointerdown', this.down);
@@ -23,6 +26,7 @@ export class Orbit {
   }
 
   private down = (event: PointerEvent) => {
+    if (this.blocked) return;
     if (event.button !== 0 && event.pointerType === 'mouse') return;
     this.dragging = true;
     this.lastX = event.clientX;
@@ -50,6 +54,11 @@ export class Orbit {
     this.dragging = false;
     this.host.style.cursor = 'grab';
   };
+
+  setBlocked(value: boolean) {
+    this.blocked = value;
+    if (value) { this.up(); this.yawSpeed = 0; this.pitchSpeed = 0; }
+  }
 
   /** 每帧根据阻尼与空闲漂移更新相机位置。 */
   update(dt: number, distance: number) {
@@ -82,5 +91,6 @@ export class Orbit {
     this.host.removeEventListener('pointercancel', this.up);
     this.host.removeEventListener('pointerleave', this.up);
     this.host.style.cursor = '';
+    this.host.style.touchAction = this.originalTouchAction;
   }
 }

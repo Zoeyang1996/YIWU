@@ -20,20 +20,52 @@ export interface Shape {
 
 /** 三渲二微缩模型的积木：统一的材质、勾边与低模几何。 */
 export class Kit {
-  readonly materials = new Map<string, T.MeshToonMaterial>();
+  readonly materials = new Map<string, T.MeshToonMaterial | T.MeshStandardMaterial>();
   private readonly geometries = new Map<string, T.BufferGeometry>();
   private readonly outlines = new Map<string, T.BufferGeometry>();
   private readonly inkMaterial: T.MeshBasicMaterial;
+  private readonly surfaceTexture?: T.CanvasTexture;
 
-  constructor(readonly ramp: T.DataTexture) {
+  constructor(readonly ramp: T.DataTexture, readonly realistic = false) {
     this.inkMaterial = new T.MeshBasicMaterial({ color: INK, side: T.BackSide });
+    if (realistic) {
+      const canvas = document.createElement('canvas');
+      canvas.width = canvas.height = 128;
+      const context = canvas.getContext('2d')!;
+      const pixels = context.createImageData(128, 128);
+      let seed = 8917;
+      for (let index = 0; index < 128 * 128; index++) {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        const grain = 222 + (seed % 34);
+        pixels.data[index * 4] = grain;
+        pixels.data[index * 4 + 1] = grain;
+        pixels.data[index * 4 + 2] = grain;
+        pixels.data[index * 4 + 3] = 255;
+      }
+      context.putImageData(pixels, 0, 0);
+      this.surfaceTexture = new T.CanvasTexture(canvas);
+      this.surfaceTexture.wrapS = this.surfaceTexture.wrapT = T.RepeatWrapping;
+      this.surfaceTexture.colorSpace = T.SRGBColorSpace;
+    }
   }
 
   mat(color: string, glow = 0, opacity = 1, double = false) {
     const key = `${color}|${glow}|${opacity}|${double}`;
     let material = this.materials.get(key);
     if (!material) {
-      material = new T.MeshToonMaterial({
+      material = this.realistic ? new T.MeshStandardMaterial({
+        color,
+        map: this.surfaceTexture,
+        bumpMap: this.surfaceTexture,
+        bumpScale: 0.012,
+        roughness: 0.88,
+        metalness: 0,
+        emissive: glow > 0 ? color : '#000000',
+        emissiveIntensity: glow,
+        transparent: opacity < 1,
+        opacity,
+        side: double ? T.DoubleSide : T.FrontSide,
+      }) : new T.MeshToonMaterial({
         color,
         gradientMap: this.ramp,
         emissive: glow > 0 ? color : '#000000',
@@ -50,7 +82,7 @@ export class Kit {
   geo(key: string, build: () => T.BufferGeometry) {
     let geometry = this.geometries.get(key);
     if (!geometry) {
-      geometry = flatten(build());
+      geometry = this.realistic ? build() : flatten(build());
       this.geometries.set(key, geometry);
     }
     return geometry;
@@ -79,7 +111,7 @@ export class Kit {
     mesh.castShadow = shadows;
     mesh.receiveShadow = shadows;
     parent.add(mesh);
-    if (shape.ink) this.ink(mesh, shape.inkScale ?? 1.05);
+    if (shape.ink && !this.realistic) this.ink(mesh, shape.inkScale ?? 1.05);
     return mesh;
   }
 
@@ -163,5 +195,6 @@ export class Kit {
     this.outlines.forEach(geometry => geometry.dispose());
     this.materials.forEach(material => material.dispose());
     this.inkMaterial.dispose();
+    this.surfaceTexture?.dispose();
   }
 }

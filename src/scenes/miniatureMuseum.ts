@@ -67,7 +67,7 @@ export function createMiniatureMuseum(host: HTMLElement, options: MiniatureOptio
   const dioramas: Diorama[] = [];
   const builders = [buildMorning, buildNoon, buildNight];
   order.forEach((market, index) => {
-    const kit = new Kit(ramp);
+    const kit = new Kit(ramp, market === 'night');
     kits.push(kit);
     const diorama = builders[index]({ kit, palette: palettes[market], halo, steam: steamTexture });
     const angle = index * step;
@@ -82,6 +82,7 @@ export function createMiniatureMuseum(host: HTMLElement, options: MiniatureOptio
   const orbit = new Orbit(camera, host, target);
 
   let disposed = false;
+  let blocked = false;
   let frame = 0;
   let previous = performance.now();
   let targetTime = 1;
@@ -124,24 +125,38 @@ export function createMiniatureMuseum(host: HTMLElement, options: MiniatureOptio
   }
 
   function setTime(market: Market) {
+    clearTimeout(snapTimer);
     const index = order.indexOf(market);
     if (index >= 0) targetTime = index;
     currentIndex = index >= 0 ? index : currentIndex;
   }
 
   const wheel = (event: WheelEvent) => {
-    if (disposed) return;
+    if (disposed || blocked) return;
     event.preventDefault();
     targetTime = T.MathUtils.clamp(targetTime + event.deltaY * 0.0022, 0, 2);
+    notifyTime();
     clearTimeout(snapTimer);
     snapTimer = window.setTimeout(() => { targetTime = Math.round(targetTime); }, 220);
   };
 
   const keyboard = (event: KeyboardEvent) => {
-    if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return;
+    if (disposed || blocked || event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement) return;
+    if (!['ArrowDown', 'ArrowRight', 'ArrowUp', 'ArrowLeft'].includes(event.key)) return;
+    event.preventDefault();
     if (event.key === 'ArrowDown' || event.key === 'ArrowRight') targetTime = T.MathUtils.clamp(Math.round(targetTime) + 1, 0, 2);
     if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') targetTime = T.MathUtils.clamp(Math.round(targetTime) - 1, 0, 2);
+    clearTimeout(snapTimer);
+    notifyTime();
   };
+
+  // 导航跟随用户选择的目标，避免尚未结束的动画把按钮改回旧时辰。
+  function notifyTime() {
+    const index = Math.round(targetTime);
+    if (index === currentIndex) return;
+    currentIndex = index;
+    options.onTime?.(order[index]);
+  }
 
   const contextLost = (event: Event) => {
     event.preventDefault();
@@ -175,17 +190,12 @@ export function createMiniatureMuseum(host: HTMLElement, options: MiniatureOptio
     fill.intensity = 0.1 + (mood.stars > 0.5 ? 0.22 : 0.1);
 
     const seconds = now / 1000;
-    let nearest = 0;
-    let nearestGap = 9;
     dioramas.forEach((diorama, index) => {
       const gap = Math.abs(visualTime - index);
-      if (gap < nearestGap) { nearestGap = gap; nearest = index; }
+      // 停稳时只展示当前岛屿，防止相邻时辰从画面下方露出；翻页时两座仍可见。
+      diorama.group.visible = gap < 0.999;
       diorama.tick(seconds, T.MathUtils.clamp(1 - gap, 0, 1));
     });
-    if (nearest !== currentIndex) {
-      currentIndex = nearest;
-      options.onTime?.(order[nearest]);
-    }
 
     orbit.update(dt, distance);
     renderer.render(scene, camera);
@@ -195,6 +205,11 @@ export function createMiniatureMuseum(host: HTMLElement, options: MiniatureOptio
 
   return {
     setTime,
+    setBlocked(value: boolean) {
+      blocked = value;
+      if (value) clearTimeout(snapTimer);
+      orbit.setBlocked(value);
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
