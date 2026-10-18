@@ -17,5 +17,5 @@ if not exist "node_modules\vite\bin\vite.js" (
 )
 echo YIWU market preview: http://127.0.0.1:5173/
 echo Keep this window open. Press Ctrl+C to stop.
-"%YIWU_NODE%" node_modules\vite\bin\vite.js --host 127.0.0.1
+"%YIWU_NODE%" scripts\start-preview.mjs
 pause

@@ -27,6 +27,7 @@ Desktop.ini
 .idea/
 .vscode/*
 !.vscode/extensions.json
+!.vscode/tasks.json
 !.vscode/settings.json
 
 # Temporary files and test output
