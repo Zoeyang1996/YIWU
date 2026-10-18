@@ -1,4 +1,5 @@
 import { createOverview } from '../scenes/createOverview';
+import { createMiniatureMuseum } from '../scenes/miniatureMuseum';
 import { productViewer } from '../scenes/productViewer';
 import { markets, marketInfo, stalls, stallById, productById, productArt, type Market } from '../data/catalog';
 import { addItem, total, validateCart, type CartItem } from '../data/cart';
@@ -7,15 +8,21 @@ const bag = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 const icons = ['☀', '☾', '◒'];
 export function mountApp(root: HTMLElement) {
   root.innerHTML = `<div class="app-shell"><header class="topbar"><a class="brand" href="/" data-action="home"><span class="seal">义<br>乌</span><span><strong>三时市集</strong><small>YIWU · A DAY IN THE MARKET</small></span></a><nav class="top-nav" aria-label="主导航"><button data-action="home" class="nav-home">市集总览</button><button data-action="guide">逛集小笺 <span>↗</span></button></nav><button class="cart-button" data-action="cart" aria-label="打开我的行囊">${bag}<span>我的行囊</span><b class="cart-count">0</b></button></header>
-  <main class="experience"><div class="watermark" aria-hidden="true">市</div><section class="hero"><p class="eyebrow">浙江 · 义乌 <span> / </span> 一日三时，人间百味</p><p class="chapter">壹 <span>—</span> <span class="chapter-label"></span></p><h1></h1><p class="hero-description"></p><button class="enter-button" data-action="enter"><span></span><b>↗</b></button><p class="hero-footnote">不赶路，不通关。只管自在逛一逛。</p></section>
+<main class="experience"><div class="home-ui"><p class="home-hint"><span></span>滚动换时辰 · 拖动看四周</p><div class="home-actions"><div class="time-marks" role="group" aria-label="选择时辰"><button data-time="morning" aria-pressed="false">早</button><button data-time="noon" aria-pressed="true">午</button><button data-time="night" aria-pressed="false">夜</button></div><button class="enter-seal" data-action="enter">入市<b>↘</b></button></div></div>
   <div class="scene-host"></div><div class="scene-error" hidden role="alert"><span>山水稍候</span><h2>市集暂时没能展开</h2><p>请开启浏览器硬件加速，然后重试。行囊中的好物仍然保留。</p><button data-action="retry">重新加载场景</button></div>
   <div class="street-heading" hidden><button data-action="home">← 返回总览</button><span class="street-title"></span><small>沿街慢行 · 点摊相逢</small></div><aside class="stall-panel" hidden></aside>
-  <div class="scene-stamp"><span class="stamp-symbol">逛</span><span>一方小天地<br>万般烟火气</span></div><div class="scene-note"><span class="live-dot"></span><span class="scene-phrase"></span><small>可自由切换的三时市集</small></div>
+  
   <div class="street-tools" hidden><div class="street-help"><kbd>W A S D</kbd> / 方向键行走 <span>·</span> 点击地面或摊位</div><div class="stall-shortcuts" aria-label="前往摊位"></div><div class="dpad" aria-label="触屏行走"><button data-move="w" aria-label="向前走">↑</button><button data-move="a" aria-label="向左走">←</button><button data-move="s" aria-label="向后走">↓</button><button data-move="d" aria-label="向右走">→</button></div></div>
   </main><footer class="bottom-bar"><div class="time-intro"><span>随时光，入市集</span><small>在场景中滚动鼠标，观三时流转</small></div><div class="time-switch" aria-label="选择市集时段">${markets.map((m, i) => `<button data-time="${m}" aria-pressed="false"><span class="time-icon">${icons[i]}</span><span><strong>${marketInfo[m].name}</strong><small>${['日正人间', '灯火志怪', '晨起烟火'][i]}</small></span><em>0${i + 1}</em></button>`).join('')}</div><span class="edition">三时百物 · 自在相逢<br><small>交互体验版 / 模拟选购</small></span></footer></div><div class="modal-root"></div><div class="toast" role="status" aria-live="polite"></div>`;
   const $ = <T extends HTMLElement = HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
   const shell = $('.app-shell'), host = $('.scene-host'), panel = $('.stall-panel'), modal = $('.modal-root');
-  let scene: ReturnType<typeof createOverview> | undefined, viewer: ReturnType<typeof productViewer> | undefined;
+  let home: ReturnType<typeof createMiniatureMuseum> | undefined, streetScene: ReturnType<typeof createOverview> | undefined, viewer: ReturnType<typeof productViewer> | undefined;
+  /** 只有街道场景有角色动作；首页微缩展台不需要行走。 */
+  const scene = {
+    play: () => streetScene?.play(),
+    move: (key: string, pressed: boolean) => streetScene?.move(key, pressed),
+    dispose: () => { home?.dispose(); home = undefined; streetScene?.dispose(); streetScene = undefined; },
+  };
   let market: Market = 'noon', street = false, currentStall = '', currentMode = '', cart: CartItem[] = [], selectedSpec = '', quantity = 1, detailId = '', toastTimer = 0, disposed = false;
   const scrollPositions = new Map<string, number>(); let lastFocus: HTMLElement | null = null;
   try { cart = validateCart(JSON.parse(localStorage.getItem('yiwu-cart-v1') ?? '[]')); } catch { cart = []; }
@@ -26,13 +33,26 @@ export function mountApp(root: HTMLElement) {
   function parentPath() { const url = new URL(location.href); const p = url.searchParams; if (p.has('panel')) p.delete('panel'); else if (p.has('product')) p.delete('product'); else if (p.has('stall')) p.delete('stall'); else return '/'; return url.pathname + url.search; }
   function close() { const parent = parentPath(); if (history.state?.yiwu && history.state.parent === parent) history.back(); else navigate(parent, true); }
   function overlay(name: string) { const url = new URL(location.href); url.searchParams.set('panel', name); lastFocus = document.activeElement as HTMLElement; navigate(url.pathname + url.search); }
+  function makeStreet() {
+    home?.dispose(); home = undefined;
+    streetScene?.dispose();
+    streetScene = createOverview(host, { onError: () => { streetScene?.dispose(); streetScene = undefined; $('.scene-error').hidden = false; }, onTime: m => { market = m; updateTimeUI(); }, onProduct: id => { if (currentStall) navigate(`${pathFor()}?stall=${currentStall}&product=${id}`); }, onApproach: name => toast(`正走向「${name}」……`), onStall: id => { if (!disposed) navigate(`${pathFor()}?stall=${id}`); } });
+    currentMode = ''; currentStall = '';
+  }
+  function makeHome() {
+    streetScene?.dispose(); streetScene = undefined;
+    home?.dispose();
+    home = createMiniatureMuseum(host, { onTime: m => { market = m; updateTimeUI(); }, onError: () => { home?.dispose(); home = undefined; $('.scene-error').hidden = false; } });
+    home.setTime(market);
+    currentMode = ''; currentStall = '';
+  }
   function start() {
-    scene?.dispose(); scene = undefined; $('.scene-error').hidden = true;
-    try { scene = createOverview(host, { onError: () => { scene?.dispose(); scene = undefined; $('.scene-error').hidden = false; }, onTime: m => { market = m; updateTimeUI(); }, onProduct: id => { if (currentStall) navigate(`${pathFor()}?stall=${currentStall}&product=${id}`); }, onApproach: name => toast(`正走向「${name}」……`), onStall: id => { if (!disposed) navigate(`${pathFor()}?stall=${id}`); } }); currentMode = ''; currentStall = ''; render(); }
+    home?.dispose(); home = undefined; streetScene?.dispose(); streetScene = undefined; $('.scene-error').hidden = true;
+    try { if (/^\/market\/(noon|night|morning)\/?$/.test(location.pathname)) makeStreet(); else makeHome(); render(); }
     catch (err) { console.error('市集初始化失败', err); $('.scene-error').hidden = false; }
   }
   function updateTimeUI() {
-    root.dataset.market = market; const info = marketInfo[market]; $('.hero h1').innerHTML = info.title.replace('\n', '<br>'); $('.hero-description').innerHTML = info.description.replace('\n', '<br>'); $('.chapter-label').textContent = info.time; $('.enter-button span').textContent = `进入${info.name}`; $('.scene-phrase').textContent = info.phrase; $('.street-title').textContent = `义乌 · ${info.name}`; $('.time-intro small').textContent = street ? '任意时刻，都能出发去另一时段' : '在场景中滚动鼠标，观三时流转';
+    root.dataset.market = market; const info = marketInfo[market]; $('.street-title').textContent = `义乌 · ${info.name}`; $('.time-intro small').textContent = street ? '任意时刻，都能出发去另一时段' : '在场景中滚动鼠标，观三时流转';
     root.querySelectorAll<HTMLElement>('[data-time]').forEach(b => { const active = b.dataset.time === market; b.setAttribute('aria-pressed', String(active)); b.classList.toggle('active', active); });
     $('.stall-shortcuts').innerHTML = stalls.map((s, i) => `<button data-visit="${s.id}"><small>0${i + 1}</small>${s.names[market]}<span>↗</span></button>`).join('');
   }
@@ -42,10 +62,12 @@ export function mountApp(root: HTMLElement) {
     let stall = street ? stallById(url.searchParams.get('stall') ?? '') : undefined;
     let product = stall ? productById(url.searchParams.get('product') ?? '') : undefined; if (product && !stall?.products.includes(product.id)) product = undefined;
     const overlayName = url.searchParams.get('panel'); const hasOverlay = !!product || ['cart', 'checkout', 'success', 'guide'].includes(overlayName ?? '');
-    const mode = `${street}:${market}`; if (mode !== currentMode) { scene?.setMode(street, market); currentMode = mode; currentStall = ''; }
-    if ((stall?.id ?? '') !== currentStall) { scene?.focusStall(stall?.id); currentStall = stall?.id ?? ''; }
-    scene?.setBlocked(hasOverlay); root.classList.toggle('in-street', street); root.classList.toggle('at-stall', !!stall); shell.inert = hasOverlay;
-    $('.hero').hidden = street; $('.street-heading').hidden = !street; $('.street-tools').hidden = !street || !!stall; $('.scene-stamp').hidden = street; $('.scene-note').hidden = street; updateTimeUI(); save();
+    try { if (street && !streetScene) makeStreet(); else if (!street && !home) makeHome(); }
+    catch (err) { console.error('市集初始化失败', err); $('.scene-error').hidden = false; }
+    const mode = `${street}:${market}`; if (mode !== currentMode) { streetScene?.setMode(true, market); currentMode = mode; currentStall = ''; }
+    if ((stall?.id ?? '') !== currentStall) { streetScene?.focusStall(stall?.id); currentStall = stall?.id ?? ''; }
+    home?.setBlocked(hasOverlay); streetScene?.setBlocked(hasOverlay); root.classList.toggle('in-street', street); root.classList.toggle('home-mode', !street); root.classList.toggle('at-stall', !!stall); shell.inert = hasOverlay;
+    $('.home-ui').hidden = street; $('.street-heading').hidden = !street; $('.street-tools').hidden = !street || !!stall; updateTimeUI(); save();
     if (panel.dataset.stall && !panel.hidden) scrollPositions.set(panel.dataset.stall, panel.scrollTop); panel.hidden = !stall || hasOverlay;
     if (stall) { panel.dataset.stall = stall.id; panel.innerHTML = `<div class="panel-heading"><span class="eyebrow">沿街好物 / ${marketInfo[market].name}</span><button class="icon-button" data-action="close" aria-label="离开摊位">×</button></div><h2>${stall.names[market]}</h2><p class="host-name">${stall.hosts[market]}</p><div class="dialogue"><span>“</span>${stall.lines[market]}<button data-action="greet">和掌柜打个招呼 ↗</button></div><div class="section-label">摊上好物 <span>${stall.products.length} 件</span></div><div class="product-list">${stall.products.map(id => { const p = productById(id)!; return `<button class="product-card" data-product="${id}"><span class="product-art">${productArt(p)}</span><span><strong>${p.name}</strong><small>可环绕欣赏 · 展示样品</small><b>¥ ${p.price}<em>查看 →</em></b></span></button>`; }).join('')}</div><p class="fine-print">商品与价格为体验示例，结账不会产生真实支付。</p><button class="secondary wide" data-action="close">← 回到街道，继续逛逛</button>`; panel.scrollTop = scrollPositions.get(stall.id) ?? 0; }
     modal.replaceChildren();
@@ -73,8 +95,8 @@ export function mountApp(root: HTMLElement) {
     const el = (event.target as HTMLElement).closest<HTMLElement>('button, a[data-action]'); if (!el || !root.contains(el)) return;
     if (el.dataset.action) event.preventDefault();
     const data = el.dataset;
-    if (data.time) { market = data.time as Market; if (street) navigate(pathFor()); else { scene?.setTime(market); updateTimeUI(); } }
-    if (data.visit) scene?.visit(data.visit);
+    if (data.time) { market = data.time as Market; if (street) navigate(pathFor()); else { home?.setTime(market); updateTimeUI(); } }
+    if (data.visit) streetScene?.visit(data.visit);
     if (data.product) { const url = new URL(location.href); url.searchParams.set('product', data.product); lastFocus = el; navigate(url.pathname + url.search); }
     if (data.spec) { selectedSpec = data.spec; viewer?.setVariant(selectedSpec === productById(detailId)?.specs[1]); root.querySelectorAll<HTMLElement>('[data-spec]').forEach(b => { b.classList.toggle('selected', b.dataset.spec === selectedSpec); b.setAttribute('aria-pressed', String(b.dataset.spec === selectedSpec)); }); }
     if (data.quantity) { quantity = Math.max(1, Math.min(99, quantity + Number(data.quantity))); updateQuantity(); }

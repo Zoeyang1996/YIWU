@@ -8,3 +8,32 @@
 @media (min-width:761px) and (max-height:820px){.hero{top:7%}.chapter{margin-top:25px}.hero h1{margin:14px 0 16px;line-height:1.45}.enter-button{margin-top:24px}}
 
 .detail-actions{display:flex;justify-content:space-between;gap:15px}
+/* ── 首页：三时微缩展台 ───────────────────────────── */
+#app.home-mode{background:linear-gradient(180deg,var(--sky-top) 0%,var(--sky-mid) 47%,var(--sky-bottom) 100%)}
+#app.home-mode .bottom-bar{display:none}
+#app.home-mode .scene-host{position:fixed;inset:0;z-index:0;transition:none}
+#app.home-mode .scene-error{inset:auto;left:50%;top:50%;transform:translate(-50%,-50%);width:min(430px,86vw)}
+.home-ui{position:absolute;inset:auto 0 0 0;z-index:3;display:flex;flex-direction:column;align-items:center;gap:22px;padding-bottom:max(34px,4.4dvh);pointer-events:none;color:var(--ink)}
+.home-hint{display:flex;align-items:center;gap:12px;font-size:10px;letter-spacing:3px;color:var(--muted)}
+.home-hint span{width:34px;height:1px;background:currentColor;opacity:.55}
+.home-actions{display:flex;align-items:center;gap:18px;pointer-events:auto}
+.time-marks{display:flex;gap:4px;padding:5px;border:1px solid color-mix(in srgb,var(--ink) 18%,transparent);border-radius:999px;background:color-mix(in srgb,var(--ink) 6%,transparent);backdrop-filter:blur(10px)}
+.time-marks button{width:46px;height:40px;border-radius:999px;font:17px/1 var(--serif);letter-spacing:2px;color:var(--muted);transition:background .35s,color .35s}
+.time-marks button:hover{color:var(--ink)}
+.time-marks button.active{background:var(--ink);color:var(--sky-bottom)}
+.enter-seal{display:flex;align-items:center;gap:12px;padding:13px 20px;border:1px solid color-mix(in srgb,var(--ink) 22%,transparent);border-radius:2px;font:13px/1 var(--serif);letter-spacing:5px;color:var(--ink);background:color-mix(in srgb,var(--ink) 5%,transparent);backdrop-filter:blur(10px);transition:background .3s}
+.enter-seal:hover{background:color-mix(in srgb,var(--ink) 14%,transparent)}
+.enter-seal b{font-size:14px;font-weight:400;letter-spacing:0}
+@media(max-width:760px){
+  .home-ui{gap:15px;padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+  .home-hint{font-size:8px;letter-spacing:2px}
+  .time-marks{padding:4px}
+  .time-marks button{width:40px;height:36px;font-size:15px}
+  .enter-seal{padding:11px 14px;font-size:12px;letter-spacing:3px}
+}
+/* 首页必须整屏贴合：不重复旧的最小高度，底部控件才不会掉出视口 */
+#app.home-mode .app-shell{height:100dvh;min-height:0;overflow:hidden}
+#app.home-mode .topbar{border-bottom-color:color-mix(in srgb,var(--ink) 14%,transparent)}
+#app.home-mode .scene-host canvas{width:100%;height:100%;display:block}
+/* 画面只留模型与三个时辰，操作提示收进 aria-label */
+#app.home-mode .home-hint{display:none}
