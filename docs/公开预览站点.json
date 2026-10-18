@@ -1,0 +1,9 @@
+{
+  "project_id": "appgprj_6ac8a7a160d8819188895ee83ef7df7e",
+  "title": "海上丝绸之路 · 海图长卷",
+  "publishing_checkout": "/private/tmp/yiwu-silk-road-public",
+  "source": "本仓库 dist 的独立静态发布快照",
+  "status": "registered_not_published",
+  "access_mode": "public",
+  "blocker": "托管源代码服务器 HTTPS 证书验证失败（self signed certificate）；未绕过验证，未成功上传和部署。"
+}
