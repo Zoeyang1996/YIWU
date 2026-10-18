@@ -8,6 +8,9 @@ coverage/
 .pnpm-store/
 *.tsbuildinfo
 
+# Auto-generated asset manifest
+public/assets/models/manifest.json
+
 # Local secrets; keep only safe examples
 .env
 .env.*
